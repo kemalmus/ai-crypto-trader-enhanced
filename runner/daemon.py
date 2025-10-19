@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict
 import pandas as pd
 from storage.db import Database
@@ -31,6 +31,7 @@ class TradingDaemon:
         self.running = False
         self.cycle_count = 0
         self.last_reflection = None
+        self.sentiment_windows = {}  # Track last sentiment fetch per symbol
     
     async def init(self, nav: float):
         await self.db.connect()
@@ -90,17 +91,34 @@ class TradingDaemon:
         regime = self.signal_engine.detect_regime(df)
         logger.info(f"{symbol} regime: {regime}")
         
-        sentiment_data = await self.sentiment_analyzer.analyze_symbol(symbol)
-        if sentiment_data:
-            await self.db.save_sentiment(
-                symbol,
-                sentiment_data['sent_24h'],
-                sentiment_data.get('sent_7d'),
-                sentiment_data.get('sent_trend'),
-                sentiment_data.get('burst'),
-                sentiment_data.get('sources')
-            )
-            logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f}")
+        sentiment_data = None
+        if await self.should_fetch_sentiment(symbol):
+            sentiment_data = await self.sentiment_analyzer.analyze_symbol(symbol)
+            if sentiment_data:
+                await self.db.save_sentiment(
+                    symbol,
+                    sentiment_data['sent_24h'],
+                    sentiment_data.get('sent_7d'),
+                    sentiment_data.get('sent_trend'),
+                    sentiment_data.get('burst'),
+                    sentiment_data.get('sources')
+                )
+                current_window = self.get_sentiment_window()
+                self.sentiment_windows[symbol] = current_window
+                
+                sources = sentiment_data.get('sources', {})
+                summary = sources.get('summary', '') if isinstance(sources, dict) else ''
+                logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f} (Reason: {summary[:100]}...)")
+        else:
+            cached = await self.db.get_latest_sentiment(symbol)
+            if cached:
+                sentiment_data = {
+                    'sent_24h': float(cached.get('sent_24h', 0)),
+                    'sent_7d': float(cached.get('sent_7d', 0)) if cached.get('sent_7d') else None,
+                    'sent_trend': float(cached.get('sent_trend', 0)) if cached.get('sent_trend') else None,
+                    'burst': float(cached.get('burst', 0)) if cached.get('burst') else None,
+                    'sources': cached.get('sources')
+                }
         
         positions = await self.db.get_positions()
         current_position = next((p for p in positions if p['symbol'] == symbol), None)
@@ -208,6 +226,41 @@ class TradingDaemon:
                 pos_clean['side'], exit_check['update_stop'], trade_id=position.get('trade_id')
             )
             logger.info(f"Updated stop for {symbol}: ${exit_check['update_stop']:.2f}")
+    
+    def get_sentiment_window(self) -> str:
+        """Get current sentiment window (00:00 or 12:00 UTC)"""
+        now = datetime.now(timezone.utc)
+        if now.hour < 12:
+            return f"{now.date()}-00:00"
+        else:
+            return f"{now.date()}-12:00"
+    
+    async def should_fetch_sentiment(self, symbol: str) -> bool:
+        """Check if we should fetch fresh sentiment (twice daily at 00:00 and 12:00 UTC)"""
+        current_window = self.get_sentiment_window()
+        
+        if symbol in self.sentiment_windows:
+            if self.sentiment_windows[symbol] == current_window:
+                return False
+        
+        latest_sentiment = await self.db.get_latest_sentiment(symbol)
+        if latest_sentiment:
+            sentiment_ts = latest_sentiment['ts']
+            sentiment_window = self._get_window_from_timestamp(sentiment_ts)
+            
+            if sentiment_window == current_window:
+                self.sentiment_windows[symbol] = current_window
+                return False
+        
+        return True
+    
+    def _get_window_from_timestamp(self, ts: datetime) -> str:
+        """Convert a timestamp to its sentiment window"""
+        ts_utc = ts.replace(tzinfo=timezone.utc) if ts.tzinfo is None else ts.astimezone(timezone.utc)
+        if ts_utc.hour < 12:
+            return f"{ts_utc.date()}-00:00"
+        else:
+            return f"{ts_utc.date()}-12:00"
     
     async def update_nav(self):
         initial_nav = await self.db.get_config('initial_nav')

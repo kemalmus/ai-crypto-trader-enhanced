@@ -37,18 +37,20 @@ LLM acts as advisor and commentator; no direct execution rights.
 Data: CCXT public OHLCV. Sentiment: Perplexity search. Storage: Neon Postgres.
 
 ```
-adapters/ccxt_public.py   # public OHLCV ingest
-ta/indicators.py          # EMA/HMA/RSI/ATR/Bollinger/Donchian/CMF/RVOL/VWAP/AVWAP
-signals/rules.py          # regime gates + entries/exits + sizing/stops
-sentiment/perplexity.py   # 24h/7d polarity, news burst, source list
-advisor/openrouter.py     # LLM proposal (primary deepseek, fallback grok)
-execution/paper.py        # fills, fees+slip, ledger, NAV
-storage/db.py             # Neon Postgres client + schema ops
-runner/daemon.py          # scheduler loop, cycle orchestration
-cli/__main__.py           # `agent` command
-logging/setup.py          # JSONL + console + DB event_log
-configs/app.yaml          # universe, TFs, thresholds, models
-tests/                    # unit + integration
+adapters/ccxt_public.py      # public OHLCV ingest
+ta/indicators.py             # EMA/HMA/RSI/ATR/Bollinger/Donchian/CMF/RVOL/VWAP/AVWAP
+signals/rules.py             # regime gates + entries/exits + sizing/stops
+analysis/sentiment.py        # Perplexity + DuckDuckGo fallback for news/sentiment
+analysis/llm_advisor.py      # OpenRouter LLM (deepseek primary, grok fallback)
+analysis/reflection.py       # Periodic market commentary engine
+analysis/ddg_search.py       # DuckDuckGo search fallback
+execution/paper.py           # fills, fees+slip, ledger, NAV
+storage/db.py                # Neon Postgres client + schema ops
+runner/daemon.py             # scheduler loop, cycle orchestration
+cli/__main__.py              # `agent` command
+logging/setup.py             # JSONL + console + DB event_log
+configs/app.yaml             # universe, TFs, thresholds, models
+tests/                       # unit + integration tests
 ```
 
 ## External Services & Env Vars
@@ -81,7 +83,7 @@ tests/                    # unit + integration
 * `candles(symbol, tf, ts, o,h,l,c,v, PK(symbol,tf,ts))`
 * `features(symbol, tf, ts, ema20, ema50, ema200, hma55, rsi14, stochrsi, roc10, atr14, bb_u, bb_l, donch_u, donch_l, obv, cmf20, adx14, rvol20, vwap, avwap, PK(symbol,tf,ts))`
 * `sentiment(symbol, ts, sent_24h, sent_7d, sent_trend, burst, sources, PK(symbol,ts))`
-* `positions(symbol, qty, avg_price, side, stop, opened_ts, last_update_ts, PK(symbol))`
+* `positions(symbol, qty, avg_price, side, stop, trade_id, opened_ts, last_update_ts, PK(symbol))`
 * `trades(id, symbol, side, qty, entry_ts, entry_px, exit_ts, exit_px, fees, slippage_bps, pnl, reason, PK(id))`
 * `nav(ts, nav_usd, realized_pnl, unrealized_pnl, dd_pct, PK(ts))`
 * `reflections(id, ts, window, title, body, stats, PK(id))`
@@ -140,7 +142,7 @@ tests/                    # unit + integration
 
 ## Allowed Edit Surface (agents)
 
-* OK: `adapters/`, `ta/`, `signals/`, `sentiment/`, `advisor/`, `execution/`, `storage/`, `runner/`, `cli/`, `logging/`, `tests/`, `configs/app.yaml` (keys only).
+* OK: `adapters/`, `ta/`, `signals/`, `analysis/`, `execution/`, `storage/`, `runner/`, `cli/`, `logging/`, `tests/`, `configs/app.yaml` (keys only).
 * Do not touch: secrets, deployment files outside this repo, live-exchange integrations, non-declared dependencies.
 * Add dependencies only if justified in PR description and covered by tests.
 

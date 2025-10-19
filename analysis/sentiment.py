@@ -2,6 +2,7 @@ import os
 import aiohttp
 from typing import Dict, Optional
 import logging
+from analysis.ddg_search import DuckDuckGoSearch
 
 logger = logging.getLogger(__name__)
 
@@ -10,53 +11,58 @@ class SentimentAnalyzer:
         self.api_key = os.getenv('PERPLEXITY_API_KEY')
         self.base_url = 'https://api.perplexity.ai/chat/completions'
         self.model = 'sonar-pro'
+        self.ddg_fallback = DuckDuckGoSearch()
     
     async def analyze_symbol(self, symbol: str) -> Optional[Dict]:
-        if not self.api_key:
-            logger.warning("PERPLEXITY_API_KEY not set, skipping sentiment analysis")
-            return None
-        
-        query = self._build_query(symbol)
-        
-        try:
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    'Authorization': f'Bearer {self.api_key}',
-                    'Content-Type': 'application/json'
-                }
-                
-                payload = {
-                    'model': self.model,
-                    'messages': [
-                        {
-                            'role': 'system',
-                            'content': 'You are a financial analyst specializing in cryptocurrency markets. Provide data-driven sentiment analysis with clear numerical scores and specific supporting evidence.'
-                        },
-                        {
-                            'role': 'user',
-                            'content': query
-                        }
-                    ],
-                    'max_tokens': 300,
-                    'temperature': 0.1,
-                    'search_recency_filter': 'day',
-                    'return_related_questions': False,
-                    'return_images': False,
-                    'stream': False
-                }
-                
-                async with session.post(self.base_url, headers=headers, json=payload) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        logger.error(f"Perplexity API error {response.status}: {error_text}")
-                        return None
+        # Try Perplexity first if API key is available
+        if self.api_key:
+            query = self._build_query(symbol)
+            
+            try:
+                async with aiohttp.ClientSession() as session:
+                    headers = {
+                        'Authorization': f'Bearer {self.api_key}',
+                        'Content-Type': 'application/json'
+                    }
                     
-                    data = await response.json()
-                    return self._parse_response(symbol, data)
+                    payload = {
+                        'model': self.model,
+                        'messages': [
+                            {
+                                'role': 'system',
+                                'content': 'You are a financial analyst specializing in cryptocurrency markets. Provide data-driven sentiment analysis with clear numerical scores and specific supporting evidence.'
+                            },
+                            {
+                                'role': 'user',
+                                'content': query
+                            }
+                        ],
+                        'max_tokens': 300,
+                        'temperature': 0.1,
+                        'search_recency_filter': 'day',
+                        'return_related_questions': False,
+                        'return_images': False,
+                        'stream': False
+                    }
+                    
+                    async with session.post(self.base_url, headers=headers, json=payload) as response:
+                        if response.status != 200:
+                            error_text = await response.text()
+                            logger.warning(f"Perplexity API error {response.status}: {error_text}, falling back to DuckDuckGo")
+                        else:
+                            data = await response.json()
+                            result = self._parse_response(symbol, data)
+                            if result:
+                                return result
+            
+            except Exception as e:
+                logger.warning(f"Perplexity API failed for {symbol}: {e}, falling back to DuckDuckGo")
+        else:
+            logger.info("PERPLEXITY_API_KEY not set, using DuckDuckGo fallback")
         
-        except Exception as e:
-            logger.error(f"Sentiment analysis failed for {symbol}: {e}")
-            return None
+        # Fallback to DuckDuckGo
+        logger.info(f"Using DuckDuckGo fallback for {symbol} sentiment")
+        return await self.ddg_fallback.search_news(symbol)
     
     def _build_query(self, symbol: str) -> str:
         asset = symbol.split('/')[0]

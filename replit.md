@@ -42,9 +42,26 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
    - Proper error handling with structured logging
 
 7. **CLI Interface** (`cli/__main__.py`, `agent.py`)
-   - `agent init --nav 10000` - Initialize database and starting NAV
+   - `agent init --nav 1000` - Initialize database and starting NAV
    - `agent status` - View current NAV, positions, PnL
    - `agent run --cycle 120` - Start trading daemon
+   - `agent logs [--limit N] [--level LEVEL] [--tag TAG]` - View recent event logs
+
+9. **Sentiment Analyzer** (`analysis/sentiment.py`) - Perplexity Sonar Pro
+   - Real-time market sentiment from news and social media
+   - Stores sent_24h, sent_trend, and sources in database
+   - Scores range from -1 (bearish) to +1 (bullish)
+
+10. **LLM Advisor** (`analysis/llm_advisor.py`) - OpenRouter integration
+    - Primary model: DeepSeek Chat v3
+    - Fallback model: Grok Beta
+    - Generates trade proposals based on signals + sentiment
+    - PRD-compliant JSON schema with confidence, reasons, stop, take_profit
+
+11. **Reflection Engine** (`analysis/reflection.py`) - Market commentary
+    - Generates analytical notes every 120 cycles (4 hours at 120s/cycle)
+    - Stored in reflections table with NAV, positions, and regime data
+    - No forecasts or invented data - facts only
 
 8. **Database Layer** (`storage/db.py`) - AsyncPG persistence
    - Event logging with tags and decision tracing
@@ -56,7 +73,7 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
 ### What's Working ✓
 
 - ✓ Neon Postgres database with full schema
-- ✓ CCXT integration for multi-exchange support
+- ✓ CCXT integration for multi-exchange support (Coinbase)
 - ✓ Complete TA engine with all indicators
 - ✓ Signal generation with regime detection
 - ✓ Paper trading execution with realistic fees/slippage
@@ -64,16 +81,19 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
 - ✓ NAV calculation: starting_cash + realized_pnl + unrealized_pnl
 - ✓ Drawdown tracking from peak NAV
 - ✓ Comprehensive logging (console + database)
-- ✓ CLI interface (init, status, run)
+- ✓ CLI interface (init, status, run, logs)
 - ✓ Trading Daemon workflow running on 120s cycles
+- ✓ **Perplexity API integration** - Real-time sentiment analysis (sonar-pro model)
+- ✓ **OpenRouter LLM integration** - Trade proposals with DeepSeek/Grok
+- ✓ **Reflection engine** - Periodic market commentary every 120 cycles
+- ✓ **Sentiment persistence** - PRD-compliant schema (sent_24h, sent_7d, sent_trend, burst, sources)
 
 ### What's Pending
 
-- ⏳ Perplexity API integration for sentiment analysis
-- ⏳ OpenRouter LLM integration for trade proposals
-- ⏳ Reflection engine for periodic commentary
-- ⏳ Additional CLI commands (fund, withdraw, logs, trades, reflect, ask)
+- ⏳ Additional CLI commands (fund, withdraw, trades, reflect, ask)
 - ⏳ JSONL file logging (currently only console + DB)
+- ⏳ 7-day sentiment aggregation (currently storing 24h snapshots)
+- ⏳ Sentiment burst detection
 
 ## Known Issues & Solutions
 
@@ -118,7 +138,7 @@ Default settings (can be modified in code):
 ### First Time Setup
 ```bash
 # Initialize database and set starting NAV
-python agent.py init --nav 10000
+python agent.py init --nav 1000
 ```
 
 ### Running the Daemon
@@ -131,6 +151,15 @@ python agent.py run --cycle 120
 ```bash
 # View current NAV and positions
 python agent.py status
+
+# View recent event logs
+python agent.py logs --limit 20
+
+# Filter logs by level
+python agent.py logs --level ERROR
+
+# Filter logs by tag
+python agent.py logs --tag TRADE
 ```
 
 ## Development Notes
@@ -166,6 +195,11 @@ Core packages:
 - `pandas-ta` - Technical indicators  
 - `asyncpg` - Async Postgres driver
 - `pandas` - Data manipulation
+- `aiohttp` - Async HTTP client for APIs
+
+API Services:
+- **Perplexity** (PERPLEXITY_API_KEY) - Sentiment analysis via sonar-pro model
+- **OpenRouter** (OPENROUTER_API_KEY) - LLM advisor via DeepSeek/Grok
 
 See `pyproject.toml` for full list.
 

@@ -187,14 +187,15 @@ class Database:
             rows = await conn.fetch(query, *params)
             return [dict(row) for row in rows]
     
-    async def save_sentiment(self, symbol: str, score: float, summary: str, 
-                            citations: List[str] = None, model: str = None):
+    async def save_sentiment(self, symbol: str, sent_24h: float, sent_7d: Optional[float] = None,
+                            sent_trend: Optional[float] = None, burst: Optional[float] = None,
+                            sources: Optional[Dict] = None):
         async with self.pool.acquire() as conn:
             await conn.execute(
-                '''INSERT INTO sentiment (ts, symbol, score, summary, citations, model)
-                   VALUES ($1, $2, $3, $4, $5, $6)''',
-                datetime.utcnow(), symbol, score, summary, 
-                citations or [], model
+                '''INSERT INTO sentiment (ts, symbol, sent_24h, sent_7d, sent_trend, burst, sources)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)''',
+                datetime.utcnow(), symbol, sent_24h, sent_7d or 0, sent_trend or 0, 
+                burst or 0, json.dumps(sources) if sources else None
             )
     
     async def get_latest_sentiment(self, symbol: str) -> Optional[Dict]:
@@ -204,3 +205,19 @@ class Database:
                 symbol
             )
             return dict(row) if row else None
+    
+    async def save_reflection(self, window: str, title: str, body: str, stats: Dict):
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                '''INSERT INTO reflections (ts, window, title, body, stats)
+                   VALUES ($1, $2, $3, $4, $5)''',
+                datetime.utcnow(), window, title, body, json.dumps(stats)
+            )
+    
+    async def get_reflections(self, limit: int = 10) -> List[Dict]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                'SELECT * FROM reflections ORDER BY ts DESC LIMIT $1',
+                limit
+            )
+            return [dict(row) for row in rows]

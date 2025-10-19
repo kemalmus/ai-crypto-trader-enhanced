@@ -9,7 +9,7 @@ class SentimentAnalyzer:
     def __init__(self):
         self.api_key = os.getenv('PERPLEXITY_API_KEY')
         self.base_url = 'https://api.perplexity.ai/chat/completions'
-        self.model = 'llama-3.1-sonar-small-128k-online'
+        self.model = 'sonar-pro'
     
     async def analyze_symbol(self, symbol: str) -> Optional[Dict]:
         if not self.api_key:
@@ -74,19 +74,25 @@ class SentimentAnalyzer:
             
             return {
                 'symbol': symbol,
-                'score': score,
-                'summary': content,
-                'citations': citations[:3],
-                'model': data.get('model', self.model)
+                'sent_24h': score,
+                'sent_7d': None,
+                'sent_trend': score,
+                'burst': 0.0,
+                'sources': {
+                    'summary': content[:500],
+                    'citations': citations[:5],
+                    'model': data.get('model', self.model)
+                }
             }
         except Exception as e:
             logger.error(f"Failed to parse sentiment response: {e}")
             return {
                 'symbol': symbol,
-                'score': 0.0,
-                'summary': 'Unable to parse sentiment',
-                'citations': [],
-                'model': self.model
+                'sent_24h': 0.0,
+                'sent_7d': 0.0,
+                'sent_trend': 0.0,
+                'burst': 0.0,
+                'sources': {'error': str(e)}
             }
     
     def _extract_score(self, content: str) -> float:

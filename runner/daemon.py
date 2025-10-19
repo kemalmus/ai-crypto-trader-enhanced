@@ -9,6 +9,8 @@ from ta.indicators import TAEngine
 from signals.rules import SignalEngine
 from execution.paper import PaperBroker
 from analysis.sentiment import SentimentAnalyzer
+from analysis.llm_advisor import LLMAdvisor
+from analysis.reflection import ReflectionEngine
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -22,9 +24,13 @@ class TradingDaemon:
         self.signal_engine = SignalEngine()
         self.broker = PaperBroker()
         self.sentiment_analyzer = SentimentAnalyzer()
+        self.llm_advisor = LLMAdvisor()
+        self.reflection_engine = ReflectionEngine()
         self.symbols = symbols or ['BTC/USD', 'ETH/USD']
         self.timeframe = timeframe
         self.running = False
+        self.cycle_count = 0
+        self.last_reflection = None
     
     async def init(self, nav: float):
         await self.db.connect()
@@ -87,13 +93,14 @@ class TradingDaemon:
         sentiment_data = await self.sentiment_analyzer.analyze_symbol(symbol)
         if sentiment_data:
             await self.db.save_sentiment(
-                symbol, 
-                sentiment_data['score'], 
-                sentiment_data['summary'],
-                sentiment_data.get('citations', []),
-                sentiment_data.get('model')
+                symbol,
+                sentiment_data['sent_24h'],
+                sentiment_data.get('sent_7d'),
+                sentiment_data.get('sent_trend'),
+                sentiment_data.get('burst'),
+                sentiment_data.get('sources')
             )
-            logger.info(f"{symbol} sentiment: {sentiment_data['score']:.2f}")
+            logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f}")
         
         positions = await self.db.get_positions()
         current_position = next((p for p in positions if p['symbol'] == symbol), None)
@@ -102,6 +109,19 @@ class TradingDaemon:
             await self.check_exits(symbol, current_position, df, decision_id)
         else:
             if regime == 'trend':
+                entry_signal = self.signal_engine.check_entry_long(df)
+                
+                llm_proposal = await self.llm_advisor.get_trade_proposal(
+                    symbol, regime, entry_signal, sentiment_data, current_position
+                )
+                
+                if llm_proposal and llm_proposal['side'] == 'long' and llm_proposal['confidence'] >= 50:
+                    await self.db.log_event('INFO', ['PROPOSAL', 'LLM'], 
+                                          symbol=symbol, action='LLM_RECOMMENDS_LONG',
+                                          decision_id=decision_id, 
+                                          payload={'proposal': llm_proposal})
+                    logger.info(f"{symbol} LLM proposal: {llm_proposal['side']} ({llm_proposal['confidence']}%)")
+                
                 await self.check_entries(symbol, nav, df, decision_id)
     
     async def check_entries(self, symbol: str, nav: float, df: pd.DataFrame, decision_id: str):
@@ -230,6 +250,11 @@ class TradingDaemon:
         while self.running:
             try:
                 await self.run_cycle()
+                self.cycle_count += 1
+                
+                if self.cycle_count % 120 == 0:
+                    await self.generate_reflection("4h")
+                
                 await asyncio.sleep(cycle_seconds)
             except KeyboardInterrupt:
                 logger.info("Stopping daemon...")
@@ -240,6 +265,38 @@ class TradingDaemon:
                 await asyncio.sleep(cycle_seconds)
         
         await self.db.close()
+    
+    async def generate_reflection(self, window: str):
+        try:
+            nav_data = await self.db.get_nav()
+            positions = await self.db.get_positions()
+            
+            stats = {
+                'nav': float(nav_data['nav_usd']) if nav_data else 0,
+                'realized_pnl': float(nav_data['realized_pnl']) if nav_data else 0,
+                'unrealized_pnl': float(nav_data['unrealized_pnl']) if nav_data else 0,
+                'dd_pct': float(nav_data['dd_pct']) if nav_data else 0,
+                'positions': [
+                    {
+                        'symbol': p['symbol'],
+                        'side': p['side'],
+                        'qty': float(p['qty']),
+                        'avg_price': float(p['avg_price'])
+                    } for p in positions
+                ]
+            }
+            
+            reflection = await self.reflection_engine.generate_reflection(window, stats)
+            if reflection:
+                await self.db.save_reflection(
+                    reflection['window'],
+                    reflection['title'],
+                    reflection['body'],
+                    reflection['stats']
+                )
+                logger.info(f"Generated reflection: {reflection['title']}")
+        except Exception as e:
+            logger.error(f"Failed to generate reflection: {e}")
     
     async def status(self):
         nav_data = await self.db.get_nav()

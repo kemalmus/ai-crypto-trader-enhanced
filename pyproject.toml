@@ -28,6 +28,11 @@ dependencies = [
     "langchain-google-genai>=2.1.5",
     "langchain-anthropic>=0.3.15",
     "langchain-ollama>=0.3.3",
+    "ccxt>=4.5.11",
+    "pandas-ta>=0.4.71b0",
+    "psycopg>=3.2.11",
+    "asyncpg>=0.30.0",
+    "python-dotenv>=1.1.0",
 ]
 
 #[tool.setuptools]

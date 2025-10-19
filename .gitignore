@@ -8,6 +8,7 @@ venv/
 .env/
 .env
 .venv/
+.pythonlibs/
 
 # Distribution / packaging
 build/

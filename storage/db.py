@@ -75,12 +75,26 @@ class Database:
                    ORDER BY ts DESC LIMIT $3''',
                 symbol, tf, limit
             )
-            return [dict(row) for row in reversed(rows)]
+            result = []
+            for row in reversed(rows):
+                d = dict(row)
+                for k, v in d.items():
+                    if hasattr(v, '__float__') and not isinstance(v, (int, float)):
+                        d[k] = float(v)
+                result.append(d)
+            return result
     
     async def get_positions(self) -> List[Dict]:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch('SELECT * FROM positions')
-            return [dict(row) for row in rows]
+            result = []
+            for row in rows:
+                d = dict(row)
+                for k, v in d.items():
+                    if hasattr(v, '__float__') and not isinstance(v, (int, float)):
+                        d[k] = float(v)
+                result.append(d)
+            return result
     
     async def upsert_position(self, symbol: str, qty: float, avg_price: float, 
                             side: str, stop: float = None, trade_id: int = None):

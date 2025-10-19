@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 class TradingDaemon:
     def __init__(self, symbols: List[str] = None, timeframe: str = '5m'):
         self.db = Database()
-        self.ccxt = CCXTAdapter('binance')
+        self.ccxt = CCXTAdapter('coinbase')
         self.ta_engine = TAEngine()
         self.signal_engine = SignalEngine()
         self.broker = PaperBroker()
-        self.symbols = symbols or ['BTC/USDT', 'ETH/USDT']
+        self.symbols = symbols or ['BTC/USD', 'ETH/USD']
         self.timeframe = timeframe
         self.running = False
     
@@ -130,13 +130,21 @@ class TradingDaemon:
         if not current_price:
             return
         
-        exit_check = self.signal_engine.check_exit_conditions(position, current_price, df)
+        pos_clean = {
+            'avg_price': float(position['avg_price']),
+            'qty': float(position['qty']),
+            'side': position['side'],
+            'stop': float(position.get('stop', 0)),
+            'symbol': position['symbol']
+        }
+        
+        exit_check = self.signal_engine.check_exit_conditions(pos_clean, current_price, df)
         
         if exit_check.get('should_exit'):
             last_candle = df.iloc[-1]
             fill = self.broker.execute_exit(
-                symbol, position['side'], position['qty'], 
-                exit_check['exit_price'], position['avg_price'],
+                symbol, pos_clean['side'], pos_clean['qty'], 
+                exit_check['exit_price'], pos_clean['avg_price'],
                 last_candle['h'], last_candle['l']
             )
             
@@ -163,8 +171,8 @@ class TradingDaemon:
         
         elif exit_check.get('update_stop'):
             await self.db.upsert_position(
-                symbol, position['qty'], position['avg_price'],
-                position['side'], exit_check['update_stop'], trade_id=position.get('trade_id')
+                symbol, pos_clean['qty'], pos_clean['avg_price'],
+                pos_clean['side'], exit_check['update_stop'], trade_id=position.get('trade_id')
             )
             logger.info(f"Updated stop for {symbol}: ${exit_check['update_stop']:.2f}")
     
@@ -179,10 +187,12 @@ class TradingDaemon:
         for pos in positions:
             try:
                 current_price = self.ccxt.get_latest_price(pos['symbol'])
+                avg_price = float(pos['avg_price'])
+                qty = float(pos['qty'])
                 if pos['side'] == 'long':
-                    unrealized = (current_price - pos['avg_price']) * pos['qty']
+                    unrealized = (current_price - avg_price) * qty
                 else:
-                    unrealized = (pos['avg_price'] - current_price) * pos['qty']
+                    unrealized = (avg_price - current_price) * qty
                 total_unrealized += unrealized
             except RuntimeError as e:
                 logger.warning(f"Could not fetch price for {pos['symbol']}: {e}")

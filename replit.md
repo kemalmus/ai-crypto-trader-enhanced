@@ -77,18 +77,19 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
 
 ## Known Issues & Solutions
 
-### Binance Location Restriction
+### Exchange Configuration
 
-**Issue:** Binance API returns 451 error: "Service unavailable from a restricted location"
+**Current:** System uses **Coinbase** for market data (switched from Binance due to location restrictions)
 
-**Solutions:**
-1. Use a VPN to access Binance
-2. Switch to a different exchange:
-   ```python
-   # In runner/daemon.py
-   self.ccxt = CCXTAdapter('kraken')  # or 'bybit', 'coinbase', etc.
-   ```
-3. Configure exchange via environment variable (feature to be added)
+**Symbols:** BTC/USD, ETH/USD
+
+**To switch exchanges:**
+```python
+# In runner/daemon.py, line 22
+self.ccxt = CCXTAdapter('kraken')  # or 'bybit', 'binance', etc.
+```
+
+Note: Different exchanges use different symbol formats (e.g., BTC/USDT vs BTC/USD)
 
 ## Database Schema
 
@@ -103,7 +104,8 @@ Key tables:
 ## Configuration
 
 Default settings (can be modified in code):
-- **Symbols:** BTC/USDT, ETH/USDT
+- **Exchange:** Coinbase
+- **Symbols:** BTC/USD, ETH/USD  
 - **Timeframe:** 5m primary
 - **Cycle:** 120 seconds
 - **Risk per trade:** 0.5% of NAV

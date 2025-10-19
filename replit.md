@@ -18,8 +18,8 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
    - Proper trade lifecycle tracking (entry → exit)
 
 2. **CCXT Adapter** (`adapters/ccxt_public.py`) - Multi-exchange market data
-   - Configured for Binance by default
-   - Easy to switch to Kraken, Bybit, etc.
+   - Configured for Coinbase by default
+   - Easy to switch to Kraken, Binance, Bybit, etc.
    - Public OHLCV data only (no API keys for data)
 
 3. **TA Engine** (`ta/indicators.py`) - Technical analysis with pandas-ta
@@ -37,14 +37,14 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
    - Full round-trip cost accounting (entry + exit fees)
 
 6. **Daemon Runner** (`runner/daemon.py`) - Async trading loop
-   - 120-second cycles
+   - 90-second cycles (configurable via configs/app.yaml)
    - Flow: ingest → features → signals → execute → persist → update NAV → log
    - Proper error handling with structured logging
 
 7. **CLI Interface** (`cli/__main__.py`, `agent.py`)
    - `agent init --nav 1000` - Initialize database and starting NAV
    - `agent status` - View current NAV, positions, PnL
-   - `agent run --cycle 120` - Start trading daemon
+   - `agent run --cycle 90` - Start trading daemon (default 90s from config)
    - `agent logs [--limit N] [--level LEVEL] [--tag TAG]` - View recent event logs
 
 9. **Sentiment Analyzer** (`analysis/sentiment.py`) - Perplexity Sonar Pro
@@ -59,7 +59,7 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
     - PRD-compliant JSON schema with confidence, reasons, stop, take_profit
 
 11. **Reflection Engine** (`analysis/reflection.py`) - Market commentary
-    - Generates analytical notes every 120 cycles (4 hours at 120s/cycle)
+    - Generates analytical notes every 4 hours
     - Stored in reflections table with NAV, positions, and regime data
     - No forecasts or invented data - facts only
 
@@ -80,20 +80,51 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
 - ✓ Trade lifecycle tracking (entry fees + exit fees)
 - ✓ NAV calculation: starting_cash + realized_pnl + unrealized_pnl
 - ✓ Drawdown tracking from peak NAV
-- ✓ Comprehensive logging (console + database)
+- ✓ Comprehensive logging (console + JSONL file + database)
 - ✓ CLI interface (init, status, run, logs)
-- ✓ Trading Daemon workflow running on 120s cycles
+- ✓ Trading Daemon workflow running on 90s cycles (configurable)
 - ✓ **Perplexity API integration** - Real-time sentiment analysis (sonar-pro model)
 - ✓ **OpenRouter LLM integration** - Trade proposals with DeepSeek/Grok
-- ✓ **Reflection engine** - Periodic market commentary every 120 cycles
+- ✓ **Reflection engine** - Periodic market commentary every 4 hours
 - ✓ **Sentiment persistence** - PRD-compliant schema (sent_24h, sent_7d, sent_trend, burst, sources)
 
 ### What's Pending
 
 - ⏳ Additional CLI commands (fund, withdraw, trades, reflect, ask)
-- ⏳ JSONL file logging (currently only console + DB)
 - ⏳ 7-day sentiment aggregation (currently storing 24h snapshots)
 - ⏳ Sentiment burst detection
+
+### Recent Updates (Discrepancy Resolution)
+
+**✓ PRD Alignment Completed (Oct 19, 2025)**
+
+All major discrepancies between the PRD and implementation have been resolved:
+
+1. **✓ .env.example Fixed** - Now includes required DATABASE_URL and PERPLEXITY_API_KEY; removed unnecessary Binance keys (PRD specifies CCXT public, no auth needed)
+
+2. **✓ JSONL Logging Implemented** - Created `logging/setup.py` with:
+   - Rotating JSONL file writer (`logs/events.jsonl`)
+   - Console + File dual logging (Database logging remains in storage/db.py)
+   - 10MB rotation with 5 backup files
+   - Full event tagging support
+
+3. **✓ Configuration System** - Created `configs/app.yaml` with:
+   - Trading universe and timeframe settings
+   - All technical indicator parameters
+   - Signal rules and risk management
+   - LLM and sentiment configuration
+   - Paper broker settings
+
+4. **✓ Test Infrastructure** - Created `tests/` directory with:
+   - `conftest.py` with pytest fixtures (sample/trending candles)
+   - `test_indicators.py` with 10 unit tests for TA engine
+   - `test_signals.py` with 8 unit tests for signal logic
+   - Tests validate: RSI bounds, ATR positivity, Donchian/Bollinger ordering, etc.
+
+5. **✓ Documentation Updated** - Both AGENTS.md and replit.md now reflect:
+   - Actual file structure (`analysis/` instead of `sentiment/`, `advisor/`)
+   - Schema includes `trade_id` in positions table
+   - All components properly documented
 
 ## Known Issues & Solutions
 
@@ -117,17 +148,17 @@ Key tables:
 - `nav` - NAV snapshots with realized/unrealized PnL and drawdown
 - `candles` - OHLCV market data
 - `features` - Computed technical indicators
-- `positions` - Active positions with stops and linked trade_id
+- `positions` - Active positions with stops and linked trade_id (note: trade_id added vs PRD)
 - `trades` - Full trade history with entry/exit and PnL
 - `event_log` - Structured audit trail with tags and decision_id
 
 ## Configuration
 
-Default settings (can be modified in code):
+Default settings (configurable via configs/app.yaml):
 - **Exchange:** Coinbase
 - **Symbols:** BTC/USD, ETH/USD  
 - **Timeframe:** 5m primary
-- **Cycle:** 120 seconds
+- **Cycle:** 90 seconds (configurable)
 - **Risk per trade:** 0.5% of NAV
 - **Max exposure:** 2% of NAV per symbol
 - **Fees:** 2 bps
@@ -143,7 +174,10 @@ python agent.py init --nav 1000
 
 ### Running the Daemon
 ```bash
-# Start paper trading
+# Start paper trading (default 90s cycle from config)
+python agent.py run
+
+# Or specify custom cycle time
 python agent.py run --cycle 120
 ```
 
@@ -192,7 +226,6 @@ See **REMAINING_TASKS.md** for detailed implementation guide.
 6. **End-to-end testing** - Comprehensive validation of all features
 
 **Future Enhancements:**
-- JSONL file logging for external analysis
 - Backtest mode with historical simulations
 - Additional CLI commands (fund, withdraw, trades, reflect, ask)
 
@@ -214,16 +247,34 @@ See `pyproject.toml` for full list.
 ## File Structure
 
 ```
-/adapters/         # Exchange adapters (CCXT)
-/ta/              # Technical analysis engine
-/signals/         # Signal generation rules
-/execution/       # Paper trading execution
-/storage/         # Database layer
-/runner/          # Daemon orchestration
-/cli/             # Command-line interface
-/logging/         # Logging setup (placeholder)
-/configs/         # Configuration files (placeholder)
-agent.py          # CLI entry point
+/adapters/              # Exchange adapters (CCXT)
+  ccxt_public.py        # Public OHLCV data fetcher
+/analysis/              # AI/ML analysis components
+  sentiment.py          # Perplexity + DuckDuckGo sentiment
+  llm_advisor.py        # OpenRouter LLM trade proposals
+  reflection.py         # Market commentary engine
+  ddg_search.py         # DuckDuckGo search fallback
+/ta/                    # Technical analysis engine
+  indicators.py         # All TA indicators
+/signals/               # Signal generation rules
+  rules.py              # Entry/exit logic, regime detection
+/execution/             # Paper trading execution
+  paper.py              # Paper broker with fees/slippage
+/storage/               # Database layer
+  db.py                 # AsyncPG persistence layer
+/runner/                # Daemon orchestration
+  daemon.py             # Trading loop orchestrator
+/cli/                   # Command-line interface
+  __main__.py           # CLI commands
+/logging/               # Logging infrastructure
+  setup.py              # JSONL + console + DB logging
+/configs/               # Configuration files
+  app.yaml              # Trading parameters and settings
+/tests/                 # Unit and integration tests
+  conftest.py           # Pytest fixtures
+  test_indicators.py    # TA engine tests
+  test_signals.py       # Signal logic tests
+agent.py                # CLI entry point
 ```
 
 ## Workflow
@@ -236,7 +287,7 @@ The **Trading Daemon** workflow runs continuously:
 5. Executes paper trades
 6. Updates positions and NAV
 7. Logs all events to database
-8. Sleeps for 120 seconds and repeats
+8. Sleeps for configured cycle time (default 90s) and repeats
 
 ## User Preferences
 

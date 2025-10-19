@@ -26,6 +26,8 @@ def sample_candles():
 @pytest.fixture
 def trending_candles():
     dates = pd.date_range(end=datetime.utcnow(), periods=200, freq='5min')
+    np.random.seed(43)
+    
     trend = np.linspace(50000, 55000, 200)
     noise = np.random.randn(200) * 50
     close_prices = trend + noise

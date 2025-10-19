@@ -1,0 +1,114 @@
+# AI Crypto Trading Agent Configuration
+
+# Trading Universe
+symbols:
+  - BTC/USD
+  - ETH/USD
+
+# Timeframes
+primary_timeframe: 5m
+higher_timeframe: 1h
+
+# Cycle Settings
+cycle_seconds: 90
+max_cycle_time: 120
+
+# Data Adapter
+exchange: coinbase
+warm_up_days: 120
+
+# Technical Indicators
+indicators:
+  trend:
+    ema_fast: 20
+    ema_mid: 50
+    ema_slow: 200
+    hma: 55
+  momentum:
+    rsi: 14
+    stochrsi_k: 14
+    stochrsi_d: 14
+    stochrsi_smooth: 3
+    roc: 10
+  volatility:
+    atr: 14
+    bollinger_window: 20
+    bollinger_std: 2
+    donchian: 20
+  volume:
+    cmf: 20
+    rvol: 20
+    adx: 14
+
+# Signal Rules
+signals:
+  regime:
+    adx_threshold: 20
+  entry_long:
+    donchian_breakout: true
+    cmf_threshold: 0.0
+    rvol_threshold: 1.5
+  entry_short:
+    enabled: false
+  position_sizing:
+    target_volatility_annual: 0.10
+    max_notional_per_symbol: 0.02
+  stops:
+    initial_atr_multiplier: 2.0
+    trailing_atr_multiplier: 2.0
+    time_stop_bars_multiplier: 2
+  cooldown_bars: 3
+
+# Risk Management
+risk:
+  max_risk_per_trade: 0.005
+  max_exposure_per_symbol: 0.02
+  kill_switch:
+    enabled: true
+    sigma_threshold: 3.0
+    pause_bars: 50
+
+# LLM Advisor
+llm:
+  provider: openrouter
+  primary_model: deepseek/deepseek-chat-v3-0324
+  fallback_model: x-ai/grok-beta
+  temperature: 0.1
+  max_tokens: 400
+  min_confidence: 50
+
+# Sentiment Analysis
+sentiment:
+  provider: perplexity
+  model: sonar-pro
+  fetch_interval_hours: 4
+  sentiment_adjustment:
+    negative_trend_size_multiplier: 0.5
+
+# Reflection Engine
+reflection:
+  interval_hours: 4
+  daily_hour_utc: 0
+  min_length: 600
+  max_length: 900
+
+# Paper Broker
+paper_broker:
+  fees_bps: 2
+  slippage_bps: 3
+  slippage_k: 0.15
+
+# Logging
+logging:
+  console_level: INFO
+  file_level: INFO
+  db_level: INFO
+  jsonl_rotation_mb: 10
+  jsonl_backup_count: 5
+
+# Validator Rules
+validator:
+  max_positions: 10
+  no_pyramiding_bars: 5
+  require_regime_match: true
+  require_sentiment_check: false

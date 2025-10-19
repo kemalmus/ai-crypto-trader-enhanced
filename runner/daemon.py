@@ -107,8 +107,22 @@ class TradingDaemon:
                 self.sentiment_windows[symbol] = current_window
                 
                 sources = sentiment_data.get('sources', {})
-                summary = sources.get('summary', '') if isinstance(sources, dict) else ''
-                logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f} (Reason: {summary[:100]}...)")
+                reasoning = sources.get('reasoning', '') if isinstance(sources, dict) else ''
+                
+                # Extract key reasons from numbered list (keep structure visible)
+                reasoning_lines = [line.strip() for line in reasoning.split('\n') if line.strip()]
+                key_reasons = []
+                for line in reasoning_lines:
+                    # Match common bullet patterns: 1), 1., 2), 2., -, •, *, etc.
+                    if line.startswith(('1)', '1.', '2)', '2.', '3)', '3.', '-', '•', '*', '+')):
+                        key_reasons.append(line)
+                
+                if key_reasons:
+                    reasons_str = ' | '.join(key_reasons[:3])
+                    logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f} | {reasons_str}")
+                else:
+                    # Fallback: show first 200 chars
+                    logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f} | {reasoning[:200]}")
         else:
             cached = await self.db.get_latest_sentiment(symbol)
             if cached:

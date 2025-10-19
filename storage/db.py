@@ -164,3 +164,25 @@ class Database:
                    ON CONFLICT (key) DO UPDATE SET value = $2''',
                 key, json.dumps(value)
             )
+    
+    async def get_logs(self, limit: int = 50, level: Optional[str] = None, tag: Optional[str] = None) -> List[Dict]:
+        async with self.pool.acquire() as conn:
+            query = 'SELECT * FROM event_log WHERE 1=1'
+            params = []
+            param_idx = 1
+            
+            if level:
+                query += f' AND level = ${param_idx}'
+                params.append(level)
+                param_idx += 1
+            
+            if tag:
+                query += f' AND ${param_idx} = ANY(tags)'
+                params.append(tag)
+                param_idx += 1
+            
+            query += f' ORDER BY ts DESC LIMIT ${param_idx}'
+            params.append(limit)
+            
+            rows = await conn.fetch(query, *params)
+            return [dict(row) for row in rows]

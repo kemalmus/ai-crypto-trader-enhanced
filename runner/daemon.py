@@ -210,6 +210,7 @@ class TradingDaemon:
         await self.db.update_nav(current_nav, realized_pnl, total_unrealized, dd_pct)
     
     async def run_daemon(self, cycle_seconds: int = 90):
+        await self.db.connect()
         self.running = True
         logger.info(f"Starting daemon with {cycle_seconds}s cycles...")
         
@@ -239,3 +240,34 @@ class TradingDaemon:
         print(f"\nPositions: {len(positions)}")
         for pos in positions:
             print(f"  {pos['symbol']}: {pos['qty']} {pos['side']} @ ${pos['avg_price']:.2f}, Stop: ${pos.get('stop', 0):.2f}")
+    
+    async def show_logs(self, limit: int = 50, level: str = None, tag: str = None):
+        logs = await self.db.get_logs(limit=limit, level=level, tag=tag)
+        
+        if not logs:
+            print("No logs found.")
+            return
+        
+        print(f"\nShowing {len(logs)} recent events:")
+        print("=" * 100)
+        
+        for log in reversed(logs):
+            ts = log['ts'].strftime('%Y-%m-%d %H:%M:%S')
+            level_str = log['level']
+            tags_str = ','.join(log.get('tags', []))
+            action = log.get('action', '')
+            symbol = log.get('symbol', '')
+            decision_id = log.get('decision_id', '')[:8] if log.get('decision_id') else ''
+            
+            line = f"[{ts}] {level_str:5s} [{tags_str:15s}]"
+            if action:
+                line += f" {action:20s}"
+            if symbol:
+                line += f" {symbol:10s}"
+            if decision_id:
+                line += f" ({decision_id})"
+            
+            print(line)
+            
+            if log.get('payload'):
+                print(f"  └─ {log['payload']}")

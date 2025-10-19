@@ -8,6 +8,7 @@ from adapters.ccxt_public import CCXTAdapter
 from ta.indicators import TAEngine
 from signals.rules import SignalEngine
 from execution.paper import PaperBroker
+from analysis.sentiment import SentimentAnalyzer
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,6 +21,7 @@ class TradingDaemon:
         self.ta_engine = TAEngine()
         self.signal_engine = SignalEngine()
         self.broker = PaperBroker()
+        self.sentiment_analyzer = SentimentAnalyzer()
         self.symbols = symbols or ['BTC/USD', 'ETH/USD']
         self.timeframe = timeframe
         self.running = False
@@ -81,6 +83,17 @@ class TradingDaemon:
         
         regime = self.signal_engine.detect_regime(df)
         logger.info(f"{symbol} regime: {regime}")
+        
+        sentiment_data = await self.sentiment_analyzer.analyze_symbol(symbol)
+        if sentiment_data:
+            await self.db.save_sentiment(
+                symbol, 
+                sentiment_data['score'], 
+                sentiment_data['summary'],
+                sentiment_data.get('citations', []),
+                sentiment_data.get('model')
+            )
+            logger.info(f"{symbol} sentiment: {sentiment_data['score']:.2f}")
         
         positions = await self.db.get_positions()
         current_position = next((p for p in positions if p['symbol'] == symbol), None)

@@ -186,3 +186,21 @@ class Database:
             
             rows = await conn.fetch(query, *params)
             return [dict(row) for row in rows]
+    
+    async def save_sentiment(self, symbol: str, score: float, summary: str, 
+                            citations: List[str] = None, model: str = None):
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                '''INSERT INTO sentiment (ts, symbol, score, summary, citations, model)
+                   VALUES ($1, $2, $3, $4, $5, $6)''',
+                datetime.utcnow(), symbol, score, summary, 
+                citations or [], model
+            )
+    
+    async def get_latest_sentiment(self, symbol: str) -> Optional[Dict]:
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                'SELECT * FROM sentiment WHERE symbol = $1 ORDER BY ts DESC LIMIT 1',
+                symbol
+            )
+            return dict(row) if row else None

@@ -181,12 +181,20 @@ python agent.py logs --tag TRADE
 
 ## Next Steps
 
-1. **Add Perplexity sentiment** - Enhance signals with news/social sentiment
-2. **Add OpenRouter LLM** - Get AI trade proposals (advisor mode)
-3. **Add reflection engine** - Periodic market commentary
-4. **Extend CLI** - Additional commands for fund management and querying
-5. **Add JSONL logging** - File-based logs for external analysis
-6. **Backtest mode** - Run historical simulations
+See **REMAINING_TASKS.md** for detailed implementation guide.
+
+**Remaining (6 tasks):**
+1. **ConsultantAgent module** - Grok-fast model for trade proposal review
+2. **Two-agent workflow** - Main agent proposes → Consultant reviews → Final decision
+3. **Expand symbols** - Add SOL, AVAX, MATIC, LINK, UNI, AAVE (8 total)
+4. **Decision rationale** - Store full reasoning in trades table
+5. **Enhanced logging** - Show signals, sentiment, consultant feedback, decisions
+6. **End-to-end testing** - Comprehensive validation of all features
+
+**Future Enhancements:**
+- JSONL file logging for external analysis
+- Backtest mode with historical simulations
+- Additional CLI commands (fund, withdraw, trades, reflect, ask)
 
 ## Dependencies
 

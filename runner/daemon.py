@@ -154,10 +154,27 @@ class TradingDaemon:
         
         df = pd.DataFrame(candles)
         df = self.ta_engine.compute_indicators(df)
-        
+
+        # Enhanced signal logging
         regime = self.signal_engine.detect_regime(df)
-        logger.info(f"{symbol} regime: {regime}")
-        
+
+        # Log regime detection with supporting indicators
+        latest_indicators = df.iloc[-1] if not df.empty else {}
+        regime_indicators = {
+            'adx14': latest_indicators.get('adx14', 0),
+            'ema50': latest_indicators.get('ema50', 0),
+            'ema200': latest_indicators.get('ema200', 0),
+            'close': latest_indicators.get('c', 0)
+        }
+
+        await self.db.log_event('INFO', ['SIGNAL', 'REGIME'],
+                              symbol=symbol, action=f'REGIME_{regime.upper()}',
+                              decision_id=decision_id,
+                              payload={'regime': regime, 'indicators': regime_indicators})
+
+        logger.info(f"{symbol} regime: {regime} (ADX: {regime_indicators['adx14']:.2f}, "
+                   f"EMA50/200: {regime_indicators['ema50']:.2f}/{regime_indicators['ema200']:.2f})")
+
         sentiment_data = None
         if await self.should_fetch_sentiment(symbol):
             sentiment_data = await self.sentiment_analyzer.analyze_symbol(symbol)
@@ -172,10 +189,11 @@ class TradingDaemon:
                 )
                 current_window = self.get_sentiment_window()
                 self.sentiment_windows[symbol] = current_window
-                
+
+                # Enhanced sentiment logging
                 sources = sentiment_data.get('sources', {})
                 reasoning = sources.get('reasoning', '') if isinstance(sources, dict) else ''
-                
+
                 # Extract key reasons from numbered list (keep structure visible)
                 reasoning_lines = [line.strip() for line in reasoning.split('\n') if line.strip()]
                 key_reasons = []
@@ -183,13 +201,29 @@ class TradingDaemon:
                     # Match common bullet patterns: 1), 1., 2), 2., -, •, *, etc.
                     if line.startswith(('1)', '1.', '2)', '2.', '3)', '3.', '-', '•', '*', '+')):
                         key_reasons.append(line)
-                
+
+                sentiment_summary = {
+                    'sent_24h': sentiment_data['sent_24h'],
+                    'sent_7d': sentiment_data.get('sent_7d'),
+                    'sent_trend': sentiment_data.get('sent_trend'),
+                    'burst': sentiment_data.get('burst'),
+                    'key_reasons': key_reasons[:3] if key_reasons else [reasoning[:100]]
+                }
+
+                await self.db.log_event('INFO', ['SENTIMENT', 'FETCH'],
+                                      symbol=symbol, action='SENTIMENT_UPDATE',
+                                      decision_id=decision_id,
+                                      payload=sentiment_summary)
+
                 if key_reasons:
                     reasons_str = ' | '.join(key_reasons[:3])
-                    logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f} | {reasons_str}")
+                    logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f} "
+                               f"(24h) / {sentiment_data.get('sent_7d', 0):.2f} (7d) | "
+                               f"Trend: {sentiment_data.get('sent_trend', 0):.2f} | {reasons_str}")
                 else:
-                    # Fallback: show first 200 chars
-                    logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f} | {reasoning[:200]}")
+                    logger.info(f"{symbol} sentiment: {sentiment_data['sent_24h']:.2f} "
+                               f"(24h) / {sentiment_data.get('sent_7d', 0):.2f} (7d) | "
+                               f"Trend: {sentiment_data.get('sent_trend', 0):.2f}")
         else:
             cached = await self.db.get_latest_sentiment(symbol)
             if cached:
@@ -200,6 +234,12 @@ class TradingDaemon:
                     'burst': float(cached.get('burst', 0)) if cached.get('burst') else None,
                     'sources': cached.get('sources')
                 }
+
+                # Log cached sentiment usage
+                await self.db.log_event('INFO', ['SENTIMENT', 'CACHE'],
+                                      symbol=symbol, action='SENTIMENT_CACHED',
+                                      decision_id=decision_id,
+                                      payload={'sent_24h': sentiment_data['sent_24h']})
         
         positions = await self.db.get_positions()
         current_position = next((p for p in positions if p['symbol'] == symbol), None)
@@ -215,27 +255,70 @@ class TradingDaemon:
                     symbol, regime, entry_signal, sentiment_data, current_position
                 )
 
-                if llm_proposal and llm_proposal['side'] == 'long' and llm_proposal['confidence'] >= 50:
-                    # Log main proposal
+                if llm_proposal:
+                    # Enhanced LLM proposal logging
+                    proposal_metadata = llm_proposal.get('_metadata', {})
+                    proposal_summary = {
+                        'side': llm_proposal['side'],
+                        'confidence': llm_proposal['confidence'],
+                        'model_used': proposal_metadata.get('model_used', 'unknown'),
+                        'response_time_ms': proposal_metadata.get('response_time_ms', 0),
+                        'fallback_used': proposal_metadata.get('fallback_used', False),
+                        'reasons': llm_proposal.get('reasons', [])[:3],  # First 3 reasons
+                        'entry_price': llm_proposal.get('entry', 'market'),
+                        'stop_loss': llm_proposal.get('stop', {}),
+                        'take_profit': llm_proposal.get('take_profit', {})
+                    }
+
                     await self.db.log_event('INFO', ['PROPOSAL', 'LLM'],
-                                          symbol=symbol, action='LLM_RECOMMENDS_LONG',
+                                          symbol=symbol, action='LLM_PROPOSAL_GENERATED',
                                           decision_id=decision_id,
-                                          payload={'proposal': llm_proposal})
+                                          payload=proposal_summary)
+
+                    logger.info(f"{symbol} LLM proposal: {llm_proposal['side']} ({llm_proposal['confidence']}%) "
+                               f"Model: {proposal_metadata.get('model_used', 'unknown')} "
+                               f"Response: {proposal_metadata.get('response_time_ms', 0)}ms")
 
                     # Log consultant review if available
                     if consultant_review:
+                        consultant_summary = {
+                            'decision': consultant_review['decision'],
+                            'confidence': consultant_review['confidence'],
+                            'rationale': consultant_review['rationale'],
+                            'modifications': consultant_review.get('modifications', {}),
+                            'final_side': llm_proposal['side'],  # After potential modifications
+                            'final_confidence': llm_proposal['confidence']
+                        }
+
                         await self.db.log_event('INFO', ['PROPOSAL', 'CONSULTANT'],
                                               symbol=symbol, action=f"CONSULTANT_{consultant_review['decision'].upper()}",
                                               decision_id=decision_id,
-                                              payload={'review': consultant_review, 'proposal': llm_proposal})
+                                              payload=consultant_summary)
 
-                    logger.info(f"{symbol} LLM proposal: {llm_proposal['side']} ({llm_proposal['confidence']}%) "
-                               f"Model: {llm_proposal.get('_metadata', {}).get('model_used', 'unknown')}")
-
-                    if consultant_review:
                         logger.info(f"{symbol} Consultant: {consultant_review['decision']} "
                                    f"({consultant_review['confidence']}%) - {consultant_review['rationale']}")
-                
+
+                        # Log if consultant modified the proposal
+                        if consultant_review['decision'] == 'modify':
+                            modifications = consultant_review.get('modifications', {})
+                            if modifications:
+                                logger.info(f"{symbol} Consultant modifications: {modifications}")
+                    else:
+                        logger.info(f"{symbol} No consultant review available")
+
+                    # Only proceed with trading logic for long proposals above confidence threshold
+                    if llm_proposal['side'] == 'long' and llm_proposal['confidence'] >= 50:
+                        await self.db.log_event('INFO', ['PROPOSAL', 'EXECUTION'],
+                                              symbol=symbol, action='PROPOSAL_APPROVED_FOR_TRADING',
+                                              decision_id=decision_id,
+                                              payload={'confidence': llm_proposal['confidence']})
+                else:
+                    # Log when no proposal is generated
+                    await self.db.log_event('INFO', ['PROPOSAL', 'LLM'],
+                                          symbol=symbol, action='LLM_NO_PROPOSAL',
+                                          decision_id=decision_id,
+                                          payload={'reason': 'No proposal generated or API failure'})
+                    logger.info(f"{symbol} No LLM proposal generated")
                 await self.check_entries(symbol, nav, df, decision_id)
     
     async def check_entries(self, symbol: str, nav: float, df: pd.DataFrame, decision_id: str):
@@ -478,7 +561,8 @@ class TradingDaemon:
         for pos in positions:
             print(f"  {pos['symbol']}: {pos['qty']} {pos['side']} @ ${pos['avg_price']:.2f}, Stop: ${pos.get('stop', 0):.2f}")
     
-    async def show_logs(self, limit: int = 50, level: str = None, tag: str = None):
+    async def show_logs(self, limit: int = 50, level: str = None, tag: str = None,
+                       symbol: str = None, decision_id: str = None, action: str = None):
         logs = await self.db.get_logs(limit=limit, level=level, tag=tag)
         
         if not logs:
@@ -491,20 +575,45 @@ class TradingDaemon:
         for log in reversed(logs):
             ts = log['ts'].strftime('%Y-%m-%d %H:%M:%S')
             level_str = log['level']
-            tags_str = ','.join(log.get('tags', []))
+            tags = log.get('tags', [])
+            tags_str = ','.join(tags) if tags else ''
             action = log.get('action', '')
             symbol = log.get('symbol', '')
             decision_id = log.get('decision_id', '')[:8] if log.get('decision_id') else ''
-            
+
+            # Enhanced formatting based on log type
             line = f"[{ts}] {level_str:5s} [{tags_str:15s}]"
+
             if action:
                 line += f" {action:20s}"
             if symbol:
                 line += f" {symbol:10s}"
             if decision_id:
                 line += f" ({decision_id})"
-            
+
             print(line)
-            
-            if log.get('payload'):
-                print(f"  └─ {log['payload']}")
+
+            # Enhanced payload formatting based on tags
+            payload = log.get('payload')
+            if payload:
+                if isinstance(payload, dict):
+                    # Format different types of payloads
+                    if 'regime' in payload:
+                        # Signal/regime payload
+                        print(f"  └─ Regime: {payload['regime']} (ADX: {payload['indicators']['adx14']:.2f})")
+                    elif 'sent_24h' in payload:
+                        # Sentiment payload
+                        print(f"  └─ Sentiment: {payload['sent_24h']:.2f} (24h) / {payload.get('sent_7d', 0):.2f} (7d)")
+                    elif 'side' in payload and 'confidence' in payload:
+                        # Proposal payload
+                        model = payload.get('model_used', 'unknown')
+                        response_time = payload.get('response_time_ms', 0)
+                        print(f"  └─ {payload['side']} ({payload['confidence']}%) | Model: {model} | {response_time}ms")
+                    elif 'decision' in payload:
+                        # Consultant review payload
+                        print(f"  └─ Consultant: {payload['decision']} ({payload['confidence']}%) - {payload['rationale']}")
+                    else:
+                        # Generic payload formatting
+                        print(f"  └─ {payload}")
+                else:
+                    print(f"  └─ {payload}")

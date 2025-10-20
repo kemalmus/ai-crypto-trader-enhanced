@@ -23,8 +23,84 @@ async def cmd_run(args):
 async def cmd_logs(args):
     daemon = TradingDaemon()
     await daemon.db.connect()
-    await daemon.show_logs(limit=args.limit or 50, level=args.level, tag=args.tag)
+
+    if args.summary:
+        await show_logs_summary(daemon.db, args)
+    else:
+        await daemon.show_logs(
+            limit=args.limit,
+            level=args.level,
+            tag=args.tag,
+            symbol=args.symbol,
+            decision_id=args.decision_id,
+            action=args.action
+        )
     await daemon.db.close()
+
+async def show_logs_summary(db, args):
+    """Show summary statistics for logs"""
+    print("\nLog Summary Statistics")
+    print("=" * 50)
+
+    # Get logs for analysis
+    logs = await db.get_logs(limit=1000)  # Get more logs for summary
+
+    if not logs:
+        print("No logs available for summary.")
+        return
+
+    # Basic statistics
+    total_logs = len(logs)
+    levels = {}
+    tags = {}
+    symbols = {}
+    actions = {}
+
+    for log in logs:
+        # Count levels
+        level = log.get('level', 'UNKNOWN')
+        levels[level] = levels.get(level, 0) + 1
+
+        # Count tags
+        log_tags = log.get('tags', [])
+        for tag in log_tags:
+            tags[tag] = tags.get(tag, 0) + 1
+
+        # Count symbols
+        symbol = log.get('symbol')
+        if symbol:
+            symbols[symbol] = symbols.get(symbol, 0) + 1
+
+        # Count actions
+        action = log.get('action')
+        if action:
+            actions[action] = actions.get(action, 0) + 1
+
+    print(f"Total logs analyzed: {total_logs}")
+    print()
+
+    print("Log Levels:")
+    for level, count in sorted(levels.items(), key=lambda x: x[1], reverse=True):
+        percentage = (count / total_logs) * 100
+        print(f"  {level:8s}: {count:4d} ({percentage:5.1f}%)")
+
+    print()
+    print("Top Tags:")
+    for tag, count in sorted(tags.items(), key=lambda x: x[1], reverse=True)[:10]:
+        percentage = (count / total_logs) * 100
+        print(f"  {tag:12s}: {count:4d} ({percentage:5.1f}%)")
+
+    print()
+    print("Top Symbols:")
+    for symbol, count in sorted(symbols.items(), key=lambda x: x[1], reverse=True)[:10]:
+        percentage = (count / total_logs) * 100
+        print(f"  {symbol:10s}: {count:4d} ({percentage:5.1f}%)")
+
+    print()
+    print("Top Actions:")
+    for action, count in sorted(actions.items(), key=lambda x: x[1], reverse=True)[:10]:
+        percentage = (count / total_logs) * 100
+        print(f"  {action:20s}: {count:4d} ({percentage:5.1f}%)")
 
 async def cmd_rationale(args):
     daemon = TradingDaemon()
@@ -133,9 +209,13 @@ def main():
     run_parser.add_argument('--cycle', type=int, help='Cycle time in seconds (default: 90)')
     
     logs_parser = subparsers.add_parser('logs', help='Show recent event logs')
-    logs_parser.add_argument('--limit', type=int, help='Number of logs to show (default: 50)')
+    logs_parser.add_argument('--limit', type=int, default=50, help='Number of logs to show (default: 50)')
     logs_parser.add_argument('--level', type=str, help='Filter by level (INFO, ERROR, etc.)')
-    logs_parser.add_argument('--tag', type=str, help='Filter by tag (CYCLE, TRADE, etc.)')
+    logs_parser.add_argument('--tag', type=str, help='Filter by tag (CYCLE, TRADE, SIGNAL, SENTIMENT, PROPOSAL, etc.)')
+    logs_parser.add_argument('--symbol', type=str, help='Filter by symbol')
+    logs_parser.add_argument('--decision-id', type=str, help='Filter by decision ID')
+    logs_parser.add_argument('--action', type=str, help='Filter by action')
+    logs_parser.add_argument('--summary', action='store_true', help='Show summary statistics instead of full logs')
 
     rationale_parser = subparsers.add_parser('rationale', help='Show trades with decision rationale')
     rationale_parser.add_argument('--limit', type=int, default=10, help='Number of trades to show (default: 10)')

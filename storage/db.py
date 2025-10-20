@@ -203,25 +203,42 @@ class Database:
                 key, json.dumps(value)
             )
     
-    async def get_logs(self, limit: int = 50, level: Optional[str] = None, tag: Optional[str] = None) -> List[Dict]:
+    async def get_logs(self, limit: int = 50, level: Optional[str] = None, tag: Optional[str] = None,
+                      symbol: Optional[str] = None, decision_id: Optional[str] = None,
+                      action: Optional[str] = None) -> List[Dict]:
         async with self.pool.acquire() as conn:
             query = 'SELECT * FROM event_log WHERE 1=1'
             params = []
             param_idx = 1
-            
+
             if level:
                 query += f' AND level = ${param_idx}'
                 params.append(level)
                 param_idx += 1
-            
+
             if tag:
                 query += f' AND ${param_idx} = ANY(tags)'
                 params.append(tag)
                 param_idx += 1
-            
+
+            if symbol:
+                query += f' AND symbol = ${param_idx}'
+                params.append(symbol)
+                param_idx += 1
+
+            if decision_id:
+                query += f' AND decision_id = ${param_idx}'
+                params.append(decision_id)
+                param_idx += 1
+
+            if action:
+                query += f' AND action = ${param_idx}'
+                params.append(action)
+                param_idx += 1
+
             query += f' ORDER BY ts DESC LIMIT ${param_idx}'
             params.append(limit)
-            
+
             rows = await conn.fetch(query, *params)
             return [dict(row) for row in rows]
     

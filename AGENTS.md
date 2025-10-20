@@ -25,32 +25,35 @@
 
   * Status: `agent status`
   * Trades: `agent trades --since 7d`
-  * Logs: `agent logs --since 6h --level info --tags SIGNAL,TRADE,REFLECTION`
+  * Logs: `agent logs [--limit N] [--level LEVEL] [--tag TAG] [--symbol SYMBOL] [--decision-id ID] [--action ACTION] [--summary]`
+  * Rationale: `agent rationale [--limit N] [--symbol SYMBOL] [--trade-id ID]`
   * Reflections: `agent reflect --since 7d`
+  * Validation: `agent validate [--symbols LIST] [--dry-run]`
   * Q&A: `agent ask "Why did we exit BTC?"`
 
 ## Architecture Overview
 
 Single-user, intraday crypto paper-trading daemon.
-Deterministic TA → Signals → Validator/Executor (paper) → Metrics/Logs.
-LLM acts as advisor and commentator; no direct execution rights.
+Deterministic TA → Signals → LLM Proposals → Consultant Review → Validator/Executor (paper) → Metrics/Logs.
+LLM acts as advisor and commentator; Consultant Agent provides risk validation; no direct execution rights.
 Data: CCXT public OHLCV. Sentiment: Perplexity search. Storage: Neon Postgres.
 
 ```
-adapters/ccxt_public.py      # public OHLCV ingest
+adapters/ccxt_public.py      # public OHLCV ingest (multi-exchange support)
 ta/indicators.py             # EMA/HMA/RSI/ATR/Bollinger/Donchian/CMF/RVOL/VWAP/AVWAP
 signals/rules.py             # regime gates + entries/exits + sizing/stops
 analysis/sentiment.py        # Perplexity + DuckDuckGo fallback for news/sentiment
-analysis/llm_advisor.py      # OpenRouter LLM (deepseek primary, grok fallback)
+analysis/llm_advisor.py      # OpenRouter LLM (deepseek primary, grok fallback) + consultant integration
+analysis/consultant_agent.py # Grok-fast consultant for proposal review/validation
 analysis/reflection.py       # Periodic market commentary engine
 analysis/ddg_search.py       # DuckDuckGo search fallback
 execution/paper.py           # fills, fees+slip, ledger, NAV
-storage/db.py                # Neon Postgres client + schema ops
-runner/daemon.py             # scheduler loop, cycle orchestration
-cli/__main__.py              # `agent` command
-logging/setup.py             # JSONL + console + DB event_log
-configs/app.yaml             # universe, TFs, thresholds, models
-tests/                       # unit + integration tests
+storage/db.py                # Neon Postgres client + schema ops + decision rationale
+runner/daemon.py             # scheduler loop, cycle orchestration (enhanced logging)
+cli/__main__.py              # `agent` command (rationale, validate commands)
+logging/setup.py             # JSONL + console + DB event_log (enhanced formatting)
+configs/app.yaml             # universe, TFs, thresholds, models, exchanges
+tests/                       # unit + integration tests (expanded coverage)
 ```
 
 ## External Services & Env Vars
@@ -58,8 +61,9 @@ tests/                       # unit + integration tests
 * **CCXT** (public endpoints only) — no keys required.
 * **OpenRouter** — models:
 
-  * Primary: `deepseek/deepseek-chat-v3-0324`
-  * Fallback: `x-ai/grok-4-fast`
+  * Primary (Advisor): `deepseek/deepseek-chat-v3-0324`
+  * Fallback (Advisor): `x-ai/grok-beta`
+  * Consultant: `x-ai/grok-4-fast` (separate API calls for proposal review)
   * `OPENROUTER_API_KEY` required.
 * **Perplexity Search API** — sentiment/news pulse from Reddit + crypto media.
 
@@ -84,7 +88,7 @@ tests/                       # unit + integration tests
 * `features(symbol, tf, ts, ema20, ema50, ema200, hma55, rsi14, stochrsi, roc10, atr14, bb_u, bb_l, donch_u, donch_l, obv, cmf20, adx14, rvol20, vwap, avwap, PK(symbol,tf,ts))`
 * `sentiment(symbol, ts, sent_24h, sent_7d, sent_trend, burst, sources, PK(symbol,ts))`
 * `positions(symbol, qty, avg_price, side, stop, trade_id, opened_ts, last_update_ts, PK(symbol))`
-* `trades(id, symbol, side, qty, entry_ts, entry_px, exit_ts, exit_px, fees, slippage_bps, pnl, reason, PK(id))`
+* `trades(id, symbol, side, qty, entry_ts, entry_px, exit_ts, exit_px, fees, slippage_bps, pnl, reason, decision_rationale, PK(id))`
 * `nav(ts, nav_usd, realized_pnl, unrealized_pnl, dd_pct, PK(ts))`
 * `reflections(id, ts, window, title, body, stats, PK(id))`
 * `qa(id, ts, question, answer, PK(id))`
@@ -133,11 +137,15 @@ tests/                       # unit + integration tests
 ## Logging & Observability
 
 * Console: human-readable. File: `logs/events.jsonl` (rotated). DB: `event_log`.
-* Tags: `CYCLE`, `DATA`, `FEATURES`, `SIGNAL`, `PROPOSAL`, `VALIDATION`, `TRADE`, `EXIT`, `RISK`, `SENTIMENT`, `REFLECTION`, `QA`, `ERROR`.
-* Each cycle emits heartbeat, cache stats, feature compute time, LLM latency, validator reasons.
+* Tags: `CYCLE`, `DATA`, `FEATURES`, `SIGNAL`, `SENTIMENT`, `PROPOSAL`, `CONSULTANT`, `TRADE`, `EXIT`, `RISK`, `REFLECTION`, `QA`, `ERROR`.
+* Each cycle emits heartbeat, cache stats, feature compute time, LLM latency, consultant decisions, signal details, sentiment scores.
+* Enhanced filtering and formatting for signal, sentiment, and consultation events.
 * Filter examples:
 
-  * `agent logs --tags SIGNAL --since 2h`
+  * `agent logs --tags SIGNAL --symbol BTC/USD --since 2h` - Signal events for specific symbol
+  * `agent logs --tags PROPOSAL --decision-id abc123` - All proposal events for a decision cycle
+  * `agent logs --action REGIME_TREND --summary` - Regime detection summary
+  * `agent rationale --trade-id 123` - View decision context for specific trade
   * SQL: `SELECT * FROM event_log WHERE 'TRADE'=ANY(tags) AND ts>now()-interval '7 days' ORDER BY ts DESC;`
 
 ## Allowed Edit Surface (agents)
@@ -150,10 +158,11 @@ tests/                       # unit + integration tests
 
 * Required to pass before merge:
 
-  * `pytest -q` green
+  * `pytest -q` green (20+ consultant tests)
   * `ruff check .` clean
   * `pyright` no new errors
-  * Dry-run cycle prints `CYCLE`→`SIGNAL`→`PROPOSAL`→`VALIDATION` heartbeat with a `decision_id`
+  * Dry-run cycle prints `CYCLE`→`SIGNAL`→`SENTIMENT`→`PROPOSAL`→`CONSULTANT`→`VALIDATION` heartbeat with a `decision_id`
+  * `agent validate --dry-run` shows configured exchanges and symbols
 
 ## Gotchas
 
@@ -165,15 +174,21 @@ tests/                       # unit + integration tests
 
 ## Quick Tasks For Agents
 
-* Implement missing unit tests for indicators and validator edges.
-* Add ETH/USDT to default universe; keep config-driven.
-* Optimize RVOL and AVWAP computations; cache-aware.
-* Extend CLI with `agent portfolio` (weights, exposure, VaR proxy).
-* Add backtest command reusing live TA path and costs.
+* ✅ **COMPLETED**: Implement consultant agent with LLM-powered proposal review
+* ✅ **COMPLETED**: Add 8-symbol universe (BTC, ETH, SOL, AVAX, MATIC, LINK, UNI, AAVE)
+* ✅ **COMPLETED**: Enhanced logging with signal, sentiment, and consultation details
+* ✅ **COMPLETED**: Decision rationale storage with complete audit trails
+* ⏳ Implement missing unit tests for indicators and validator edges.
+* ⏳ Optimize RVOL and AVWAP computations; cache-aware.
+* ⏳ Extend CLI with `agent portfolio` (weights, exposure, VaR proxy).
+* ⏳ Add backtest command reusing live TA path and costs.
+* ⏳ Verify CCXT adapter compatibility for expanded symbol universe.
 
 ## Proof Artifacts
 
-* Unit test diffs for logic changes.
-* JSONL snippet showing validator acceptance/rejection with reasons.
-* SQL snapshot: last 20 trades with PnL and fees.
+* Unit test diffs for logic changes (20+ consultant tests added).
+* JSONL snippet showing consultant proposal review workflow with approve/reject/modify decisions.
+* SQL snapshot: last 20 trades with PnL, fees, and decision rationale.
+* CLI output: `agent validate --dry-run` showing configured exchanges and symbols.
+* CLI output: `agent rationale --trade-id 123` showing complete decision context.
 * Reflection sample stored and retrievable via CLI.

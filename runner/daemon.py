@@ -10,6 +10,7 @@ from signals.rules import SignalEngine
 from execution.paper import PaperBroker
 from analysis.sentiment import SentimentAnalyzer
 from analysis.llm_advisor import LLMAdvisor
+from analysis.consultant_agent import ConsultantAgent
 from analysis.reflection import ReflectionEngine
 import logging
 
@@ -24,7 +25,8 @@ class TradingDaemon:
         self.signal_engine = SignalEngine()
         self.broker = PaperBroker()
         self.sentiment_analyzer = SentimentAnalyzer()
-        self.llm_advisor = LLMAdvisor()
+        self.consultant_agent = ConsultantAgent()
+        self.llm_advisor = LLMAdvisor(consultant_agent=self.consultant_agent)
         self.reflection_engine = ReflectionEngine()
         self.symbols = symbols or ['BTC/USD', 'ETH/USD']
         self.timeframe = timeframe
@@ -143,16 +145,31 @@ class TradingDaemon:
             if regime == 'trend':
                 entry_signal = self.signal_engine.check_entry_long(df)
                 
-                llm_proposal = await self.llm_advisor.get_trade_proposal(
+                # Get proposal with consultant review
+                llm_proposal, consultant_review = await self.llm_advisor.get_trade_proposal_with_consultant(
                     symbol, regime, entry_signal, sentiment_data, current_position
                 )
-                
+
                 if llm_proposal and llm_proposal['side'] == 'long' and llm_proposal['confidence'] >= 50:
-                    await self.db.log_event('INFO', ['PROPOSAL', 'LLM'], 
+                    # Log main proposal
+                    await self.db.log_event('INFO', ['PROPOSAL', 'LLM'],
                                           symbol=symbol, action='LLM_RECOMMENDS_LONG',
-                                          decision_id=decision_id, 
+                                          decision_id=decision_id,
                                           payload={'proposal': llm_proposal})
-                    logger.info(f"{symbol} LLM proposal: {llm_proposal['side']} ({llm_proposal['confidence']}%)")
+
+                    # Log consultant review if available
+                    if consultant_review:
+                        await self.db.log_event('INFO', ['PROPOSAL', 'CONSULTANT'],
+                                              symbol=symbol, action=f"CONSULTANT_{consultant_review['decision'].upper()}",
+                                              decision_id=decision_id,
+                                              payload={'review': consultant_review, 'proposal': llm_proposal})
+
+                    logger.info(f"{symbol} LLM proposal: {llm_proposal['side']} ({llm_proposal['confidence']}%) "
+                               f"Model: {llm_proposal.get('_metadata', {}).get('model_used', 'unknown')}")
+
+                    if consultant_review:
+                        logger.info(f"{symbol} Consultant: {consultant_review['decision']} "
+                                   f"({consultant_review['confidence']}%) - {consultant_review['rationale']}")
                 
                 await self.check_entries(symbol, nav, df, decision_id)
     

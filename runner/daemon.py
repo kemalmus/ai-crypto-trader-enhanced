@@ -5,6 +5,7 @@ from typing import List, Dict
 import pandas as pd
 from storage.db import Database
 from adapters.ccxt_public import CCXTAdapter
+import yaml
 from ta.indicators import TAEngine
 from signals.rules import SignalEngine
 from execution.paper import PaperBroker
@@ -18,9 +19,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class TradingDaemon:
-    def __init__(self, symbols: List[str] = None, timeframe: str = '5m'):
+    def __init__(self, symbols: List[str] = None, timeframe: str = '5m', config_path: str = 'configs/app.yaml'):
         self.db = Database()
-        self.ccxt = CCXTAdapter('coinbase')
+        self.config = self._load_config(config_path)
+        self.ccxt_adapters = self._initialize_exchanges()
+        # Ensure config is never None
+        if self.config is None:
+            self.config = {}
         self.ta_engine = TAEngine()
         self.signal_engine = SignalEngine()
         self.broker = PaperBroker()
@@ -28,13 +33,69 @@ class TradingDaemon:
         self.consultant_agent = ConsultantAgent()
         self.llm_advisor = LLMAdvisor(consultant_agent=self.consultant_agent)
         self.reflection_engine = ReflectionEngine()
-        self.symbols = symbols or ['BTC/USD', 'ETH/USD']
+        self.symbols = symbols or self.config.get('symbols', ['BTC/USD', 'ETH/USD'])
         self.timeframe = timeframe
         self.running = False
         self.cycle_count = 0
         self.last_reflection = None
         self.sentiment_windows = {}  # Track last sentiment fetch per symbol
-    
+
+    def _load_config(self, config_path: str) -> Dict:
+        """Load configuration from YAML file"""
+        try:
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+                return config if config is not None else {}
+        except Exception as e:
+            logger.warning(f"Failed to load config from {config_path}: {e}")
+            return {}
+
+    def _initialize_exchanges(self) -> Dict[str, CCXTAdapter]:
+        """Initialize CCXT adapters for different exchanges"""
+        exchanges = {}
+        default_exchange = self.config.get('exchange', 'coinbase') if self.config else 'coinbase'
+
+        # Initialize default exchange
+        exchanges[default_exchange] = CCXTAdapter(default_exchange)
+
+        # Initialize symbol-specific exchanges if configured
+        symbol_exchanges = self.config.get('symbol_exchanges', {}) if self.config else {}
+        for symbol_exchange in symbol_exchanges.values():
+            if symbol_exchange not in exchanges:
+                exchanges[symbol_exchange] = CCXTAdapter(symbol_exchange)
+
+        return exchanges
+
+    def get_adapter_for_symbol(self, symbol: str) -> CCXTAdapter:
+        """Get the appropriate CCXT adapter for a symbol"""
+        symbol_exchanges = self.config.get('symbol_exchanges', {}) if self.config else {}
+        default_exchange = self.config.get('exchange', 'coinbase') if self.config else 'coinbase'
+        exchange = symbol_exchanges.get(symbol, default_exchange)
+        return self.ccxt_adapters[exchange]
+
+    def validate_symbol_availability(self, symbols: List[str] = None) -> Dict[str, bool]:
+        """Validate which symbols are available on their configured exchanges"""
+        symbols_to_check = symbols or self.symbols
+        availability = {}
+
+        logger.info("Validating symbol availability across configured exchanges...")
+
+        for symbol in symbols_to_check:
+            try:
+                adapter = self.get_adapter_for_symbol(symbol)
+                # Try to fetch a small amount of data to test availability
+                candles = adapter.fetch_ohlcv(symbol, '1d', limit=1)
+                availability[symbol] = len(candles) > 0
+                if availability[symbol]:
+                    logger.info(f"✓ {symbol} available on {adapter.exchange.id}")
+                else:
+                    logger.warning(f"✗ {symbol} returned no data on {adapter.exchange.id}")
+            except Exception as e:
+                availability[symbol] = False
+                logger.error(f"✗ {symbol} error on {adapter.exchange.id}: {e}")
+
+        return availability
+
     async def init(self, nav: float):
         await self.db.connect()
         await self.db.init_nav(nav)
@@ -45,10 +106,13 @@ class TradingDaemon:
         
         logger.info("Warming up historical data...")
         for symbol in self.symbols:
-            candles = self.ccxt.warm_up_data(symbol, self.timeframe, days=120)
+            adapter = self.get_adapter_for_symbol(symbol)
+            candles = adapter.warm_up_data(symbol, self.timeframe, days=120)
             if candles:
                 await self.db.save_candles(symbol, self.timeframe, candles)
                 logger.info(f"Loaded {len(candles)} candles for {symbol}")
+            else:
+                logger.warning(f"Failed to warm up data for {symbol} on {adapter.exchange.id}")
     
     async def run_cycle(self):
         decision_id = str(uuid.uuid4())[:8]
@@ -79,7 +143,8 @@ class TradingDaemon:
                                decision_id=decision_id)
     
     async def process_symbol(self, symbol: str, nav: float, decision_id: str):
-        latest_candles = self.ccxt.fetch_ohlcv(symbol, self.timeframe, limit=5)
+        adapter = self.get_adapter_for_symbol(symbol)
+        latest_candles = adapter.fetch_ohlcv(symbol, self.timeframe, limit=5)
         if latest_candles:
             await self.db.save_candles(symbol, self.timeframe, latest_candles)
         
@@ -217,7 +282,8 @@ class TradingDaemon:
                 logger.info(f"Entered {symbol}: {qty} @ ${fill['entry_price']:.2f}")
     
     async def check_exits(self, symbol: str, position: Dict, df: pd.DataFrame, decision_id: str):
-        current_price = self.ccxt.get_latest_price(symbol)
+        adapter = self.get_adapter_for_symbol(symbol)
+        current_price = adapter.get_latest_price(symbol)
         if not current_price:
             return
         
@@ -319,7 +385,8 @@ class TradingDaemon:
         total_unrealized = 0
         for pos in positions:
             try:
-                current_price = self.ccxt.get_latest_price(pos['symbol'])
+                adapter = self.get_adapter_for_symbol(pos['symbol'])
+                current_price = adapter.get_latest_price(pos['symbol'])
                 avg_price = float(pos['avg_price'])
                 qty = float(pos['qty'])
                 if pos['side'] == 'long':

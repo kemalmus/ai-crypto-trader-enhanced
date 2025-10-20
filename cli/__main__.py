@@ -77,6 +77,49 @@ async def cmd_rationale(args):
 
     await daemon.db.close()
 
+async def cmd_validate(args):
+    daemon = TradingDaemon()
+    daemon.config = daemon._load_config('configs/app.yaml')
+
+    if args.dry_run:
+        print("\nSymbol Validation (Dry Run)")
+        print("=" * 50)
+        symbols_to_check = args.symbols or daemon.config.get('symbols', [])
+        print(f"Would validate {len(symbols_to_check)} symbols:")
+        for symbol in symbols_to_check:
+            exchange = daemon.config.get('symbol_exchanges', {}).get(symbol, daemon.config.get('exchange', 'coinbase'))
+            print(f"  {symbol} -> {exchange}")
+        print(f"\nConfigured exchanges: {list(daemon._initialize_exchanges().keys())}")
+        return
+
+    # Run actual validation
+    symbols_to_validate = args.symbols if args.symbols else None
+    availability = daemon.validate_symbol_availability(symbols_to_validate)
+
+    print(f"\nSymbol Availability Validation Results ({len(availability)} symbols):")
+    print("=" * 70)
+
+    available = 0
+    unavailable = 0
+
+    for symbol, is_available in availability.items():
+        exchange = daemon.config.get('symbol_exchanges', {}).get(symbol, daemon.config.get('exchange', 'coinbase'))
+        status = "✓ Available" if is_available else "✗ Unavailable"
+        print(f"  {symbol:10s} | {exchange:10s} | {status}")
+        if is_available:
+            available += 1
+        else:
+            unavailable += 1
+
+    print("-" * 70)
+    print(f"Available: {available}, Unavailable: {unavailable}")
+
+    if unavailable > 0:
+        print("\nRecommendations:")
+        print("- Some symbols may not be available on the configured exchange")
+        print("- Consider updating symbol_exchanges in configs/app.yaml")
+        print("- Alternative exchanges: binance (USDT pairs), kraken (USD pairs)")
+
 def main():
     parser = argparse.ArgumentParser(description='AI Crypto Trading Agent')
     subparsers = parser.add_subparsers(dest='command', help='Commands')
@@ -98,6 +141,10 @@ def main():
     rationale_parser.add_argument('--limit', type=int, default=10, help='Number of trades to show (default: 10)')
     rationale_parser.add_argument('--symbol', type=str, help='Filter by symbol')
     rationale_parser.add_argument('--trade-id', type=int, help='Show specific trade by ID')
+
+    validate_parser = subparsers.add_parser('validate', help='Validate symbol availability across exchanges')
+    validate_parser.add_argument('--symbols', nargs='*', help='Specific symbols to validate (default: all configured)')
+    validate_parser.add_argument('--dry-run', action='store_true', help='Show what would be validated without making API calls')
     
     args = parser.parse_args()
     
@@ -115,6 +162,8 @@ def main():
         asyncio.run(cmd_logs(args))
     elif args.command == 'rationale':
         asyncio.run(cmd_rationale(args))
+    elif args.command == 'validate':
+        asyncio.run(cmd_validate(args))
 
 if __name__ == '__main__':
     main()

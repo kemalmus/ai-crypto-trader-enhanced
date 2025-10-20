@@ -1,9 +1,16 @@
 # AI Crypto Trading Agent Configuration
 
 # Trading Universe
+# Note: Symbol availability depends on exchange. Use 'coinbase' for USD pairs, 'binance' for USDT pairs
 symbols:
   - BTC/USD
   - ETH/USD
+  - SOL/USD    # May require manual verification on coinbase
+  - AVAX/USD   # May require manual verification on coinbase
+  - MATIC/USD  # May require manual verification on coinbase
+  - LINK/USD   # May require manual verification on coinbase
+  - UNI/USD    # May require manual verification on coinbase
+  - AAVE/USD   # May require manual verification on coinbase
 
 # Timeframes
 primary_timeframe: 5m
@@ -15,7 +22,19 @@ max_cycle_time: 120
 
 # Data Adapter
 exchange: coinbase
+# Alternative exchanges: binance, kraken
+# Note: binance uses USDT pairs (e.g., BTC/USDT), coinbase/kraken use USD pairs (e.g., BTC/USD)
 warm_up_days: 120
+
+# Symbol Exchange Mapping
+# Override exchange for specific symbols if needed
+symbol_exchanges:
+  # SOL/USD: coinbase  # Uncomment if available on coinbase
+  # AVAX/USD: coinbase # Uncomment if available on coinbase
+  # MATIC/USD: coinbase # Uncomment if available on coinbase
+  # LINK/USD: coinbase # Uncomment if available on coinbase
+  # UNI/USD: coinbase # Uncomment if available on coinbase
+  # AAVE/USD: coinbase # Uncomment if available on coinbase
 
 # Technical Indicators
 indicators:

@@ -1,7 +1,7 @@
 import os
 import aiohttp
 from typing import Dict, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 import json
 
@@ -81,7 +81,7 @@ class ReflectionEngine:
         parts.append(f"- Drawdown: {stats.get('dd_pct', 0):.2f}%")
         
         if stats.get('trades_count'):
-            parts.append(f"\nTrading Activity:")
+            parts.append("\nTrading Activity:")
             parts.append(f"- Trades: {stats['trades_count']}")
             parts.append(f"- Win Rate: {stats.get('win_rate', 0):.1f}%")
             parts.append(f"- Avg PnL: ${stats.get('avg_pnl', 0):.2f}")
@@ -92,12 +92,12 @@ class ReflectionEngine:
                 parts.append(f"  - {pos['symbol']}: {pos['side']} {pos['qty']} @ ${pos['avg_price']:.2f}")
         
         if stats.get('regimes'):
-            parts.append(f"\nMarket Regimes:")
+            parts.append("\nMarket Regimes:")
             for symbol, regime in stats['regimes'].items():
                 parts.append(f"  - {symbol}: {regime}")
         
         if stats.get('sentiment'):
-            parts.append(f"\nSentiment Scores:")
+            parts.append("\nSentiment Scores:")
             for symbol, score in stats['sentiment'].items():
                 parts.append(f"  - {symbol}: {score:.2f}")
         

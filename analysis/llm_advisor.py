@@ -1,6 +1,6 @@
 import os
 import aiohttp
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 import logging
 import json
 
@@ -93,12 +93,12 @@ class LLMAdvisor:
         ]
         
         if sentiment:
-            parts.append(f"\nSentiment Analysis:")
+            parts.append("\nSentiment Analysis:")
             parts.append(f"  Score: {sentiment.get('score', 0):.2f} (-1 to +1)")
             parts.append(f"  Summary: {sentiment.get('summary', 'N/A')[:200]}")
         
         if current_position:
-            parts.append(f"\nCurrent Position:")
+            parts.append("\nCurrent Position:")
             parts.append(f"  Side: {current_position.get('side')}")
             parts.append(f"  Quantity: {current_position.get('qty')}")
             parts.append(f"  Avg Price: ${current_position.get('avg_price', 0):.2f}")

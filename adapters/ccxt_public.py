@@ -1,7 +1,6 @@
 import ccxt
 from datetime import datetime, timedelta
 from typing import List, Dict
-import pandas as pd
 
 class CCXTAdapter:
     def __init__(self, exchange_id: str = 'binance'):

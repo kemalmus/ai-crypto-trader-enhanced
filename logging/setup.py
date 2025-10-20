@@ -1,9 +1,8 @@
 import logging
 import json
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 class JSONLFileHandler(logging.Handler):
     def __init__(self, log_dir: str = 'logs', max_bytes: int = 10_000_000, backup_count: int = 5):

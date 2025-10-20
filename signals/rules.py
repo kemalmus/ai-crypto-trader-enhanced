@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Dict, Optional
+from typing import Dict
 
 class SignalEngine:
     def __init__(self, max_risk_per_trade: float = 0.005, max_exposure_per_symbol: float = 0.02):

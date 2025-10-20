@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 
 @pytest.fixture
 def sample_candles():

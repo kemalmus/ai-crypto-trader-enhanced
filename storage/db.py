@@ -113,26 +113,37 @@ class Database:
             await conn.execute('DELETE FROM positions WHERE symbol = $1', symbol)
     
     async def create_trade(self, symbol: str, side: str, qty: float, entry_px: float,
-                          entry_fees: float = 0, slippage_bps: float = 0) -> int:
+                          entry_fees: float = 0, slippage_bps: float = 0,
+                          decision_rationale: str = None) -> int:
         async with self.pool.acquire() as conn:
             trade_id = await conn.fetchval(
-                '''INSERT INTO trades (symbol, side, qty, entry_ts, entry_px, fees, slippage_bps)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7)
+                '''INSERT INTO trades (symbol, side, qty, entry_ts, entry_px, fees, slippage_bps, decision_rationale)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                    RETURNING id''',
-                symbol, side, qty, datetime.utcnow(), entry_px, entry_fees, slippage_bps
+                symbol, side, qty, datetime.utcnow(), entry_px, entry_fees, slippage_bps, decision_rationale
             )
             return trade_id
     
     async def close_trade(self, trade_id: int, exit_px: float, exit_fees: float,
-                         exit_slippage_bps: float, pnl: float, reason: str = None):
+                         exit_slippage_bps: float, pnl: float, reason: str = None,
+                         decision_rationale: str = None):
         async with self.pool.acquire() as conn:
-            await conn.execute(
-                '''UPDATE trades 
-                   SET exit_ts = $1, exit_px = $2, fees = fees + $3, 
-                       slippage_bps = (slippage_bps + $4) / 2, pnl = $5, reason = $6
-                   WHERE id = $7''',
-                datetime.utcnow(), exit_px, exit_fees, exit_slippage_bps, pnl, reason, trade_id
-            )
+            if decision_rationale:
+                await conn.execute(
+                    '''UPDATE trades
+                       SET exit_ts = $1, exit_px = $2, fees = fees + $3,
+                           slippage_bps = (slippage_bps + $4) / 2, pnl = $5, reason = $6, decision_rationale = $7
+                       WHERE id = $8''',
+                    datetime.utcnow(), exit_px, exit_fees, exit_slippage_bps, pnl, reason, decision_rationale, trade_id
+                )
+            else:
+                await conn.execute(
+                    '''UPDATE trades
+                       SET exit_ts = $1, exit_px = $2, fees = fees + $3,
+                           slippage_bps = (slippage_bps + $4) / 2, pnl = $5, reason = $6
+                       WHERE id = $7''',
+                    datetime.utcnow(), exit_px, exit_fees, exit_slippage_bps, pnl, reason, trade_id
+                )
     
     async def get_open_trade(self, symbol: str) -> Optional[Dict]:
         async with self.pool.acquire() as conn:
@@ -141,6 +152,33 @@ class Database:
                 symbol
             )
             return dict(row) if row else None
+
+    async def get_trade_with_rationale(self, trade_id: int) -> Optional[Dict]:
+        """Get a trade with its decision rationale"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                'SELECT * FROM trades WHERE id = $1',
+                trade_id
+            )
+            return dict(row) if row else None
+
+    async def get_trades_with_rationale(self, limit: int = 50, symbol: str = None) -> List[Dict]:
+        """Get recent trades with decision rationale"""
+        async with self.pool.acquire() as conn:
+            query = 'SELECT * FROM trades WHERE decision_rationale IS NOT NULL'
+            params = []
+            param_idx = 1
+
+            if symbol:
+                query += f' AND symbol = ${param_idx}'
+                params.append(symbol)
+                param_idx += 1
+
+            query += f' ORDER BY entry_ts DESC LIMIT ${param_idx}'
+            params.append(limit)
+
+            rows = await conn.fetch(query, *params)
+            return [dict(row) for row in rows]
     
     async def get_total_realized_pnl(self) -> float:
         async with self.pool.acquire() as conn:

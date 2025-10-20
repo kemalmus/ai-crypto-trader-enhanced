@@ -190,9 +190,18 @@ class TradingDaemon:
                     last_candle['h'], last_candle['l']
                 )
                 
+                # Serialize decision context for trade record
+                decision_rationale = None
+                if llm_proposal:
+                    decision_rationale = self.llm_advisor.serialize_decision_context(
+                        symbol, regime, entry_signal, sentiment_data, current_position,
+                        llm_proposal, consultant_review
+                    )
+
                 trade_id = await self.db.create_trade(
                     symbol, entry_signal['side'], qty, fill['entry_price'],
-                    entry_fees=fill['fees'], slippage_bps=fill['slippage_bps']
+                    entry_fees=fill['fees'], slippage_bps=fill['slippage_bps'],
+                    decision_rationale=decision_rationale
                 )
                 
                 await self.db.upsert_position(
@@ -237,9 +246,16 @@ class TradingDaemon:
                 
                 total_pnl = fill['pnl'] - entry_fees
                 
+                # Serialize exit decision context
+                exit_rationale = self.llm_advisor.serialize_decision_context(
+                    symbol, regime, {}, sentiment_data, pos_clean,
+                    {'exit_signal': exit_check}, None  # No consultant review for exits
+                )
+
                 await self.db.close_trade(
                     trade_id, fill['exit_price'], fill['fees'],
-                    fill['slippage_bps'], total_pnl, reason=exit_check['reason']
+                    fill['slippage_bps'], total_pnl, reason=exit_check['reason'],
+                    decision_rationale=exit_rationale
                 )
             
             await self.db.close_position(symbol)

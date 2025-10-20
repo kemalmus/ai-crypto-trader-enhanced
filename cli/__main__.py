@@ -26,6 +26,57 @@ async def cmd_logs(args):
     await daemon.show_logs(limit=args.limit or 50, level=args.level, tag=args.tag)
     await daemon.db.close()
 
+async def cmd_rationale(args):
+    daemon = TradingDaemon()
+    await daemon.db.connect()
+
+    if args.trade_id:
+        # Show specific trade
+        trade = await daemon.db.get_trade_with_rationale(args.trade_id)
+        if trade:
+            print(f"\nTrade {args.trade_id} Decision Rationale:")
+            print("=" * 60)
+            print(f"Symbol: {trade['symbol']}")
+            print(f"Side: {trade['side']}")
+            print(f"Quantity: {trade['qty']}")
+            print(f"Entry: ${trade['entry_px']:.2f} on {trade['entry_ts']}")
+            if trade.get('exit_px'):
+                print(f"Exit: ${trade['exit_px']:.2f} on {trade['exit_ts']}")
+                print(f"PnL: ${trade['pnl']:.2f}")
+            print(f"\nDecision Rationale:")
+            if trade.get('decision_rationale'):
+                import json
+                try:
+                    rationale = json.loads(trade['decision_rationale'])
+                    print(json.dumps(rationale, indent=2))
+                except json.JSONDecodeError:
+                    print(trade['decision_rationale'])
+            else:
+                print("No decision rationale available")
+        else:
+            print(f"Trade {args.trade_id} not found")
+    else:
+        # Show recent trades with rationale
+        trades = await daemon.db.get_trades_with_rationale(limit=args.limit, symbol=args.symbol)
+        if not trades:
+            print("No trades with decision rationale found.")
+            await daemon.db.close()
+            return
+
+        print(f"\nRecent Trades with Decision Rationale ({len(trades)}):")
+        print("=" * 100)
+
+        for trade in trades:
+            exit_info = f"Exit: ${trade['exit_px']:7.2f}" if trade.get('exit_px') else 'Open      '
+            pnl_info = f"PnL: ${trade['pnl']:7.2f}" if trade.get('pnl') else 'PnL: N/A  '
+            print(f"ID: {trade['id']:3d} | {trade['symbol']:8s} | {trade['side']:4s} | "
+                  f"Qty: {trade['qty']:6.4f} | Entry: ${trade['entry_px']:7.2f} | "
+                  f"{exit_info} | {pnl_info}")
+
+        print(f"\nUse 'agent rationale --trade-id <id>' to see detailed rationale for a specific trade.")
+
+    await daemon.db.close()
+
 def main():
     parser = argparse.ArgumentParser(description='AI Crypto Trading Agent')
     subparsers = parser.add_subparsers(dest='command', help='Commands')
@@ -42,6 +93,11 @@ def main():
     logs_parser.add_argument('--limit', type=int, help='Number of logs to show (default: 50)')
     logs_parser.add_argument('--level', type=str, help='Filter by level (INFO, ERROR, etc.)')
     logs_parser.add_argument('--tag', type=str, help='Filter by tag (CYCLE, TRADE, etc.)')
+
+    rationale_parser = subparsers.add_parser('rationale', help='Show trades with decision rationale')
+    rationale_parser.add_argument('--limit', type=int, default=10, help='Number of trades to show (default: 10)')
+    rationale_parser.add_argument('--symbol', type=str, help='Filter by symbol')
+    rationale_parser.add_argument('--trade-id', type=int, help='Show specific trade by ID')
     
     args = parser.parse_args()
     
@@ -57,6 +113,8 @@ def main():
         asyncio.run(cmd_run(args))
     elif args.command == 'logs':
         asyncio.run(cmd_logs(args))
+    elif args.command == 'rationale':
+        asyncio.run(cmd_rationale(args))
 
 if __name__ == '__main__':
     main()

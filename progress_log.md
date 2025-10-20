@@ -22,5 +22,13 @@
 - ✓ Created comprehensive integration tests (6/6 passing) validating all workflow paths
 - ✓ All consultant tests pass (14/14 total)
 
+2025-10-20: Phase 3 COMPLETED - Decision Rationale Storage:
+- ✓ Added decision_rationale column to trades table with backward compatibility
+- ✓ Implemented serialization of complete decision context (TA, sentiment, proposals, consultant reviews)
+- ✓ Updated daemon to capture decision rationale for both entry and exit trades
+- ✓ Added CLI command 'agent rationale' for querying trades with decision context
+- ✓ Created comprehensive database tests (6/6 passing) ensuring data persistence and retrieval
+- ✓ All storage functionality verified and tested
+
 2025-10-20: Identified TA gap—session VWAP and anchored AVWAP missing; updated plan.md with Task 7.0 Fortify TA Feature Set to capture implementation and testing work.
 

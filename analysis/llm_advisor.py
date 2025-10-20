@@ -104,6 +104,43 @@ class LLMAdvisor:
                    f"(confidence: {consultant_review['confidence']}%)")
 
         return final_proposal, consultant_review
+
+    def serialize_decision_context(self, symbol: str, regime: str, signals: Dict,
+                                  sentiment: Optional[Dict] = None,
+                                  current_position: Optional[Dict] = None,
+                                  proposal: Dict = None,
+                                  consultant_review: Dict = None) -> str:
+        """
+        Serialize the complete decision context for storage in the database.
+
+        Args:
+            symbol: Trading pair symbol
+            regime: Market regime (trend/chop)
+            signals: Technical signals data
+            sentiment: Sentiment analysis data
+            current_position: Current position if any
+            proposal: LLM trading proposal
+            consultant_review: Consultant review decision
+
+        Returns:
+            JSON string containing all decision context
+        """
+        context = {
+            'symbol': symbol,
+            'regime': regime,
+            'timestamp': time.time(),
+            'technical_signals': signals,
+            'sentiment_analysis': sentiment,
+            'current_position': current_position,
+            'llm_proposal': proposal,
+            'consultant_review': consultant_review,
+            'metadata': {
+                'serialized_by': 'LLMAdvisor.serialize_decision_context',
+                'version': '1.0'
+            }
+        }
+
+        return json.dumps(context, indent=2, default=str)
     
     async def _call_model(self, model: str, prompt: str) -> Optional[Dict]:
         """Call OpenRouter API with specified model"""

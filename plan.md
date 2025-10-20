@@ -6,9 +6,11 @@
 - `storage/db.py` - Persists trades, events, sentiment; needs rationale column and logging hooks.
 - `configs/app.yaml` - Extends symbol universe and consultation parameters.
 - `logging/setup.py` - Ensures enhanced logging formatting and new tags.
+- `ta/indicators.py` - Maintains indicator calculations including VWAP/AVWAP logic.
 - `tests/test_consultant_agent.py` - Validates consultant agent behavior and fallback.
 - `tests/test_daemon_workflow.py` - Covers end-to-end consultation flow and event logging.
 - `tests/test_storage.py` - Confirms decision rationale persistence.
+- `tests/test_indicators.py` - Covers indicator computations and regression cases.
 - `cli/__main__.py` - Surfaces new logging filters or status data if needed.
 
 ### Notes
@@ -52,5 +54,11 @@
   - [ ] 6.1 Execute the scripted scenarios from Task 9, capturing evidence (logs, DB queries, JSONL snippets).
   - [ ] 6.2 Record results of linting, typing, tests, and dry-run cycle; address regressions promptly.
   - [ ] 6.3 Summarize outcomes and residual risks in progress tracking or documentation.
+
+- [ ] 7.0 Fortify TA Feature Set
+  - [ ] 7.1 Implement session-based VWAP calculations and anchored AVWAP from recent breakout bars in `ta/indicators.py`.
+  - [ ] 7.2 Ensure indicator warm-up and configuration support for the enhanced VWAP/AVWAP logic (e.g., session resets, breakout detection).
+  - [ ] 7.3 Expand `tests/test_indicators.py` to cover VWAP/AVWAP behavior and regressions, aligning with the original TA requirements.
+  - [ ] 7.4 Update documentation (`replit.md`, `PRD.md`) if TA outputs or configuration options change.
 
 

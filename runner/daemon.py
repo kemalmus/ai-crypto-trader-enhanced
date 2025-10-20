@@ -245,7 +245,7 @@ class TradingDaemon:
         current_position = next((p for p in positions if p['symbol'] == symbol), None)
         
         if current_position:
-            await self.check_exits(symbol, current_position, df, decision_id)
+            await self.check_exits(symbol, current_position, df, decision_id, regime, sentiment_data)
         else:
             if regime == 'trend':
                 entry_signal = self.signal_engine.check_entry_long(df)
@@ -312,6 +312,7 @@ class TradingDaemon:
                                               symbol=symbol, action='PROPOSAL_APPROVED_FOR_TRADING',
                                               decision_id=decision_id,
                                               payload={'confidence': llm_proposal['confidence']})
+                        await self.check_entries(symbol, nav, df, decision_id, llm_proposal, consultant_review, regime, sentiment_data, current_position)
                 else:
                     # Log when no proposal is generated
                     await self.db.log_event('INFO', ['PROPOSAL', 'LLM'],
@@ -319,9 +320,10 @@ class TradingDaemon:
                                           decision_id=decision_id,
                                           payload={'reason': 'No proposal generated or API failure'})
                     logger.info(f"{symbol} No LLM proposal generated")
-                await self.check_entries(symbol, nav, df, decision_id)
+                    await self.check_entries(symbol, nav, df, decision_id, None, None, regime, sentiment_data, current_position)
     
-    async def check_entries(self, symbol: str, nav: float, df: pd.DataFrame, decision_id: str):
+    async def check_entries(self, symbol: str, nav: float, df: pd.DataFrame, decision_id: str,
+                           llm_proposal=None, consultant_review=None, regime=None, sentiment_data=None, current_position=None):
         entry_signal = self.signal_engine.check_entry_long(df)
         
         if entry_signal['signal']:
@@ -364,7 +366,8 @@ class TradingDaemon:
                 
                 logger.info(f"Entered {symbol}: {qty} @ ${fill['entry_price']:.2f}")
     
-    async def check_exits(self, symbol: str, position: Dict, df: pd.DataFrame, decision_id: str):
+    async def check_exits(self, symbol: str, position: Dict, df: pd.DataFrame, decision_id: str,
+                         regime=None, sentiment_data=None):
         adapter = self.get_adapter_for_symbol(symbol)
         current_price = adapter.get_latest_price(symbol)
         if not current_price:

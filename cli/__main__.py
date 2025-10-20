@@ -119,7 +119,7 @@ async def cmd_rationale(args):
             if trade.get('exit_px'):
                 print(f"Exit: ${trade['exit_px']:.2f} on {trade['exit_ts']}")
                 print(f"PnL: ${trade['pnl']:.2f}")
-            print(f"\nDecision Rationale:")
+            print("\nDecision Rationale:")
             if trade.get('decision_rationale'):
                 import json
                 try:
@@ -149,7 +149,7 @@ async def cmd_rationale(args):
                   f"Qty: {trade['qty']:6.4f} | Entry: ${trade['entry_px']:7.2f} | "
                   f"{exit_info} | {pnl_info}")
 
-        print(f"\nUse 'agent rationale --trade-id <id>' to see detailed rationale for a specific trade.")
+        print("\nUse 'agent rationale --trade-id <id>' to see detailed rationale for a specific trade.")
 
     await daemon.db.close()
 

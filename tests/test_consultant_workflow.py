@@ -1,9 +1,7 @@
 import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from analysis.llm_advisor import LLMAdvisor
 from analysis.consultant_agent import ConsultantAgent
-from runner.daemon import TradingDaemon
 
 
 class TestConsultantWorkflow:

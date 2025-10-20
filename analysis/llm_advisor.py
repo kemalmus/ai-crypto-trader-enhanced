@@ -73,7 +73,7 @@ class LLMAdvisor:
 
         # If no consultant agent, return proposal as-is
         if not self.consultant_agent:
-            logger.info(f"No consultant agent configured, returning proposal without review")
+            logger.info("No consultant agent configured, returning proposal without review")
             return proposal, None
 
         # Get consultant review

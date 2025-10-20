@@ -1,5 +1,4 @@
 import pytest
-import ccxt
 from adapters.ccxt_public import CCXTAdapter
 
 
@@ -130,7 +129,7 @@ class TestSymbolCompatibility:
                 else:
                     recommendations[symbol] = f"{best_exchange}:{symbol}"
             else:
-                recommendations[symbol] = f"unavailable"
+                recommendations[symbol] = "unavailable"
 
         print("\nOptimal Exchange Recommendations:")
         for symbol, recommendation in recommendations.items():

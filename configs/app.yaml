@@ -126,3 +126,11 @@ validator:
   no_pyramiding_bars: 5
   require_regime_match: true
   require_sentiment_check: false
+
+# Web UI
+ui:
+  enabled: true
+  host: 0.0.0.0
+  port: 8000
+  sse_poll_ms: 1000
+  logs_limit: 50

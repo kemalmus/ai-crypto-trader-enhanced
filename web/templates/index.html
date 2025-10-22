@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Tab Navigation -->
+<div class="mb-6">
+    <div class="tabs tabs-boxed bg-base-200">
+        <a class="tab tab-active" onclick="showTab('overview')">Overview</a>
+        <a class="tab" onclick="showTab('symbols')">Symbols</a>
+        <a class="tab" onclick="showTab('trades')">Trades</a>
+        <a class="tab" onclick="showTab('logs')">Logs</a>
+    </div>
+</div>
+
+<!-- Tab Content -->
+<div id="tab-content">
+    <!-- Overview Tab -->
+    <div id="overview-tab" class="tab-content active">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="cyberpunk-card rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">NAV</h3>
+                <div id="nav-value" class="text-2xl font-bold cyberpunk-text">$0.00</div>
+            </div>
+            <div class="cyberpunk-card rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Realized PnL</h3>
+                <div id="realized-pnl" class="text-xl font-bold text-success">$0.00</div>
+            </div>
+            <div class="cyberpunk-card rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Unrealized PnL</h3>
+                <div id="unrealized-pnl" class="text-xl font-bold text-info">$0.00</div>
+            </div>
+            <div class="cyberpunk-card rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Drawdown</h3>
+                <div id="drawdown" class="text-xl font-bold text-warning">0.00%</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="cyberpunk-card rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Positions</h3>
+                <div id="positions-count" class="text-3xl font-bold cyberpunk-text">0</div>
+                <p class="text-sm opacity-70">Open positions</p>
+            </div>
+            <div class="cyberpunk-card rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Cycle Status</h3>
+                <div id="last-cycle" class="text-lg cyberpunk-text">-</div>
+                <div id="cycle-latency" class="text-sm opacity-70">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Symbols Tab -->
+    <div id="symbols-tab" class="tab-content">
+        <div id="symbols-grid" class="symbol-grid">
+            <!-- Symbol cards will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Trades Tab -->
+    <div id="trades-tab" class="tab-content">
+        <div class="mb-4 flex flex-wrap gap-2">
+            <input type="text" id="trades-symbol-filter" placeholder="Filter by symbol"
+                   class="input input-bordered input-sm bg-base-200 border-primary">
+            <input type="datetime-local" id="trades-since-filter"
+                   class="input input-bordered input-sm bg-base-200 border-primary">
+            <button onclick="loadTrades()" class="btn btn-primary btn-sm">Filter</button>
+        </div>
+
+        <div class="cyberpunk-card rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="table table-compact w-full trade-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Side</th>
+                            <th>Qty</th>
+                            <th>Entry</th>
+                            <th>Exit</th>
+                            <th>PnL</th>
+                            <th>Fees</th>
+                            <th>Slippage</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trades-table-body">
+                        <!-- Trade rows will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Tab -->
+    <div id="logs-tab" class="tab-content">
+        <div class="mb-4 flex flex-wrap gap-2">
+            <select id="logs-level-filter" class="select select-bordered select-sm bg-base-200 border-primary">
+                <option value="">All Levels</option>
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+            <input type="text" id="logs-tags-filter" placeholder="Tags (comma-separated)"
+                   class="input input-bordered input-sm bg-base-200 border-primary">
+            <input type="text" id="logs-symbol-filter" placeholder="Symbol"
+                   class="input input-bordered input-sm bg-base-200 border-primary">
+            <input type="text" id="logs-decision-filter" placeholder="Decision ID"
+                   class="input input-bordered input-sm bg-base-200 border-primary">
+            <button onclick="loadLogs()" class="btn btn-primary btn-sm">Filter</button>
+            <button onclick="toggleRawLogs()" id="raw-toggle" class="btn btn-outline btn-sm">Raw JSON</button>
+        </div>
+
+        <div class="terminal-panel rounded-lg p-4 h-96 overflow-y-auto" id="logs-container">
+            <!-- Log entries will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Tab switching
+function showTab(tabName) {
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    event.target.classList.add('tab-active');
+    document.getElementById(tabName + '-tab').classList.add('active');
+
+    // Load tab data
+    switch(tabName) {
+        case 'overview':
+            loadOverview();
+            break;
+        case 'symbols':
+            loadSymbols();
+            break;
+        case 'trades':
+            loadTrades();
+            break;
+        case 'logs':
+            loadLogs();
+            startLogStream();
+            break;
+    }
+}
+
+// Load overview data
+async function loadOverview() {
+    try {
+        const response = await fetch('/api/overview');
+        const data = await response.json();
+
+        document.getElementById('nav-value').textContent = `$${data.nav_usd.toLocaleString()}`;
+        document.getElementById('realized-pnl').textContent = `$${data.realized_pnl.toFixed(2)}`;
+        document.getElementById('unrealized-pnl').textContent = `$${data.unrealized_pnl.toFixed(2)}`;
+        document.getElementById('drawdown').textContent = `${data.dd_pct.toFixed(2)}%`;
+        document.getElementById('positions-count').textContent = data.open_positions_count;
+
+        if (data.last_cycle_ts) {
+            document.getElementById('last-cycle').textContent = formatTimestamp(data.last_cycle_ts);
+        }
+        if (data.cycle_latency_ms) {
+            document.getElementById('cycle-latency').textContent = `${data.cycle_latency_ms}ms latency`;
+        }
+    } catch (error) {
+        console.error('Failed to load overview:', error);
+    }
+}
+
+// Load symbols data
+async function loadSymbols() {
+    try {
+        const response = await fetch('/api/symbols');
+        const symbols = await response.json();
+
+        const grid = document.getElementById('symbols-grid');
+        grid.innerHTML = symbols.map(symbol => `
+            <div class="cyberpunk-card rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">${symbol.symbol}</h3>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div>Regime: <span class="${symbol.regime === 'trend' ? 'text-success' : 'text-warning'}">${symbol.regime}</span></div>
+                    <div>Price: $${symbol.last_price.toFixed(2)}</div>
+                    <div>RVOL: ${symbol.rvol.toFixed(2)}</div>
+                    <div>CMF: ${symbol.cmf.toFixed(3)}</div>
+                    <div class="col-span-2">Donchian: ${symbol.donch_lower.toFixed(2)} - ${symbol.donch_upper.toFixed(2)}</div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load symbols:', error);
+    }
+}
+
+// Load trades data
+async function loadTrades() {
+    try {
+        const symbol = document.getElementById('trades-symbol-filter').value;
+        const since = document.getElementById('trades-since-filter').value;
+        let url = '/api/trades';
+        const params = [];
+        if (symbol) params.push(`symbol=${symbol}`);
+        if (since) params.push(`since=${since}T00:00:00Z`);
+        if (params.length) url += '?' + params.join('&');
+
+        const response = await fetch(url);
+        const trades = await response.json();
+
+        const tbody = document.getElementById('trades-table-body');
+        tbody.innerHTML = trades.map(trade => `
+            <tr>
+                <td>${trade.symbol}</td>
+                <td><span class="badge ${trade.side === 'long' ? 'badge-success' : 'badge-error'}">${trade.side}</span></td>
+                <td>${trade.qty}</td>
+                <td>${formatTimestamp(trade.entry_ts)}</td>
+                <td>${trade.exit_ts ? formatTimestamp(trade.exit_ts) : '-'}</td>
+                <td class="${trade.pnl >= 0 ? 'pnl-positive' : 'pnl-negative'}">${trade.pnl ? '$' + trade.pnl.toFixed(2) : '-'}</td>
+                <td>$${trade.fees.toFixed(2)}</td>
+                <td>${trade.slippage_bps.toFixed(2)}bps</td>
+                <td class="text-xs">${trade.reason || '-'}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load trades:', error);
+    }
+}
+
+// Load logs data
+let rawMode = false;
+let logStreamStarted = false;
+
+async function loadLogs() {
+    try {
+        const level = document.getElementById('logs-level-filter').value;
+        const tags = document.getElementById('logs-tags-filter').value;
+        const symbol = document.getElementById('logs-symbol-filter').value;
+        const decisionId = document.getElementById('logs-decision-filter').value;
+
+        let url = '/api/logs';
+        const params = [];
+        if (level) params.push(`level=${level}`);
+        if (tags) params.push(`tags=${tags}`);
+        if (symbol) params.push(`symbol=${symbol}`);
+        if (decisionId) params.push(`decision_id=${decisionId}`);
+        if (params.length) url += '?' + params.join('&');
+
+        const response = await fetch(url);
+        const logs = await response.json();
+
+        renderLogs(logs);
+    } catch (error) {
+        console.error('Failed to load logs:', error);
+    }
+}
+
+function renderLogs(logs) {
+    const container = document.getElementById('logs-container');
+    const html = logs.map(log => {
+        if (rawMode) {
+            return `<div class="log-entry level-${log.level.toLowerCase()}">${JSON.stringify(log, null, 2)}</div>`;
+        } else {
+            const tagsHtml = log.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('');
+            let content = `[${formatTimestamp(log.ts)}] ${log.level} ${tagsHtml}`;
+            if (log.symbol) content += ` ${log.symbol}`;
+            if (log.action) content += ` ${log.action}`;
+            if (log.decision_id) {
+                content += ` <span class="cyberpunk-accent">${log.decision_id.slice(0, 8)}</span>`;
+                document.getElementById('last-decision-id').textContent = `Decision ID: ${log.decision_id.slice(0, 8)}...`;
+            }
+            return `<div class="log-entry level-${log.level.toLowerCase()}">${content}</div>`;
+        }
+    }).join('');
+
+    container.innerHTML = html;
+    scrollToBottom('logs-container');
+}
+
+function toggleRawLogs() {
+    rawMode = !rawMode;
+    const btn = document.getElementById('raw-toggle');
+    btn.classList.toggle('btn-outline', !rawMode);
+    loadLogs(); // Reload with new format
+}
+
+function startLogStream() {
+    if (logStreamStarted) return;
+    logStreamStarted = true;
+
+    const eventSource = new EventSource('/api/logs/stream');
+    eventSource.onmessage = function(event) {
+        const log = JSON.parse(event.data);
+        updateHeartbeat();
+
+        const container = document.getElementById('logs-container');
+        const logDiv = document.createElement('div');
+        logDiv.className = `log-entry level-${log.level.toLowerCase()}`;
+
+        if (rawMode) {
+            logDiv.textContent = JSON.stringify(log, null, 2);
+        } else {
+            const tagsHtml = log.tags.map(tag => `<span class="tag-badge">${tag}</span>`).join('');
+            let content = `[${formatTimestamp(log.ts)}] ${log.level} ${tagsHtml}`;
+            if (log.symbol) content += ` ${log.symbol}`;
+            if (log.action) content += ` ${log.action}`;
+            if (log.decision_id) {
+                content += ` <span class="cyberpunk-accent">${log.decision_id.slice(0, 8)}</span>`;
+                document.getElementById('last-decision-id').textContent = `Decision ID: ${log.decision_id.slice(0, 8)}...`;
+            }
+            logDiv.innerHTML = content;
+        }
+
+        container.appendChild(logDiv);
+        scrollToBottom('logs-container');
+    };
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadOverview(); // Load overview by default
+});
+</script>
+{% endblock %}
+

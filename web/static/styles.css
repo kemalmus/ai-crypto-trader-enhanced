@@ -1,0 +1,126 @@
+/* AI Crypto Trading Agent - Cyberpunk UI Styles */
+
+/* Import Tailwind CSS from CDN */
+@import url('https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/base');
+@import url('https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/components');
+@import url('https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/utilities');
+
+/* Import DaisyUI cyberpunk theme */
+@import url('https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/themes/cyberpunk.css');
+@import url('https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.css');
+
+/* Custom cyberpunk terminal styling */
+:root {
+  --terminal-bg: #0d001a;
+  --terminal-border: #ff00ff;
+  --terminal-text: #00ffff;
+  --terminal-accent: #ff1493;
+}
+
+body {
+  background: linear-gradient(135deg, #0d001a 0%, #1a0033 50%, #0d001a 100%);
+  font-family: 'Courier New', monospace;
+  color: var(--terminal-text);
+}
+
+.cyberpunk-card {
+  background: rgba(13, 0, 26, 0.8);
+  border: 1px solid var(--terminal-border);
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.cyberpunk-border {
+  border-color: var(--terminal-border);
+  border-width: 2px;
+}
+
+.cyberpunk-text {
+  color: var(--terminal-text);
+}
+
+.cyberpunk-accent {
+  color: var(--terminal-accent);
+}
+
+.terminal-panel {
+  background: var(--terminal-bg);
+  border: 2px solid var(--terminal-border);
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.log-entry {
+  border-bottom: 1px solid rgba(255, 0, 255, 0.2);
+  padding: 4px 8px;
+  transition: background-color 0.2s;
+}
+
+.log-entry:hover {
+  background: rgba(255, 0, 255, 0.1);
+}
+
+.tag-badge {
+  background: rgba(255, 20, 147, 0.2);
+  border: 1px solid var(--terminal-accent);
+  color: var(--terminal-accent);
+  font-size: 10px;
+  padding: 2px 6px;
+  margin: 1px;
+  border-radius: 4px;
+}
+
+.level-debug { color: #888; }
+.level-info { color: var(--terminal-text); }
+.level-warn { color: #ffaa00; }
+.level-error { color: #ff4444; }
+
+.heartbeat-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.symbol-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.trade-table {
+  font-size: 12px;
+}
+
+.pnl-positive { color: #00ff00; }
+.pnl-negative { color: #ff4444; }
+
+/* Override DaisyUI defaults for cyberpunk theme */
+.btn-primary {
+  background: linear-gradient(45deg, var(--terminal-accent), var(--terminal-border));
+  border: none;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(45deg, var(--terminal-border), var(--terminal-accent));
+}
+
+.tab-active {
+  border-bottom: 2px solid var(--terminal-accent);
+  color: var(--terminal-accent);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .symbol-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .terminal-panel {
+    font-size: 12px;
+  }
+}
+

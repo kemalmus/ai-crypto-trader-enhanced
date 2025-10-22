@@ -201,6 +201,24 @@ async def cmd_validate(args):
         print("- Consider updating symbol_exchanges in configs/app.yaml")
         print("- Alternative exchanges: binance (USDT pairs), kraken (USD pairs)")
 
+def cmd_ui(args):
+    """Start web UI for monitoring"""
+    import uvicorn
+    from web.server import app
+
+    print(f"🚀 Starting AI Crypto Trading Agent UI on http://{args.host}:{args.port}")
+    print("📊 Dashboard: Overview, Symbols, Trades, Logs")
+    print("🔴 Press Ctrl+C to stop")
+    print()
+
+    uvicorn.run(
+        "web.server:app",
+        host=args.host,
+        port=args.port,
+        reload=False,
+        log_level="info"
+    )
+
 def main():
     parser = argparse.ArgumentParser(description='AI Crypto Trading Agent')
     subparsers = parser.add_subparsers(dest='command', help='Commands')
@@ -230,7 +248,11 @@ def main():
     validate_parser = subparsers.add_parser('validate', help='Validate symbol availability across exchanges')
     validate_parser.add_argument('--symbols', nargs='*', help='Specific symbols to validate (default: all configured)')
     validate_parser.add_argument('--dry-run', action='store_true', help='Show what would be validated without making API calls')
-    
+
+    ui_parser = subparsers.add_parser('ui', help='Start web UI for monitoring')
+    ui_parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
+    ui_parser.add_argument('--port', type=int, default=8000, help='Port to bind to (default: 8000)')
+
     args = parser.parse_args()
     
     if not args.command:
@@ -249,6 +271,8 @@ def main():
         asyncio.run(cmd_rationale(args))
     elif args.command == 'validate':
         asyncio.run(cmd_validate(args))
+    elif args.command == 'ui':
+        cmd_ui(args)
 
 if __name__ == '__main__':
     main()

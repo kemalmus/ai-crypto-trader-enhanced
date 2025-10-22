@@ -30,6 +30,7 @@
   * Reflections: `agent reflect --since 7d`
   * Validation: `agent validate [--symbols LIST] [--dry-run]`
   * Q&A: `agent ask "Why did we exit BTC?"`
+  * Web UI: `agent ui [--host HOST] [--port PORT]` - Launch cyberpunk terminal-style monitoring interface
 
 ## Architecture Overview
 
@@ -37,6 +38,9 @@ Single-user, intraday crypto paper-trading daemon.
 Deterministic TA → Signals → LLM Proposals → Consultant Review → Validator/Executor (paper) → Metrics/Logs.
 LLM acts as advisor and commentator; Consultant Agent provides risk validation; no direct execution rights.
 Data: CCXT public OHLCV. Sentiment: Perplexity search. Storage: Neon Postgres.
+
+**Web UI:** FastAPI-based cyberpunk terminal interface for real-time monitoring, live logs streaming, and decision tracing.
+Features Overview, Symbols, Trades, and Logs tabs with SSE-powered updates and comprehensive filtering.
 
 ```
 adapters/ccxt_public.py      # public OHLCV ingest (multi-exchange support)
@@ -50,9 +54,12 @@ analysis/ddg_search.py       # DuckDuckGo search fallback
 execution/paper.py           # fills, fees+slip, ledger, NAV
 storage/db.py                # Neon Postgres client + schema ops + decision rationale
 runner/daemon.py             # scheduler loop, cycle orchestration (enhanced logging)
-cli/__main__.py              # `agent` command (rationale, validate commands)
+web/server.py                # FastAPI web UI server (cyberpunk terminal interface)
+web/templates/               # Jinja templates for web UI (base, index, partials)
+web/static/                  # CSS/JS assets (Tailwind, DaisyUI, HTMX)
+cli/__main__.py              # `agent` command (rationale, validate, ui commands)
 logging/setup.py             # JSONL + console + DB event_log (enhanced formatting)
-configs/app.yaml             # universe, TFs, thresholds, models, exchanges
+configs/app.yaml             # universe, TFs, thresholds, models, exchanges, UI config
 tests/                       # unit + integration tests (expanded coverage)
 ```
 
@@ -73,6 +80,13 @@ tests/                       # unit + integration tests (expanded coverage)
   * CoinGecko (global cap/BTCD) — no key.
   * CryptoPanic (news pulse) — free key.
   * Fear & Greed Index — public JSON.
+* **Web UI** (cyberpunk terminal interface) — no external dependencies required:
+
+  * FastAPI — web framework and API routes
+  * Jinja2 — HTML templating
+  * Tailwind CSS + DaisyUI — cyberpunk styling
+  * HTMX — dynamic content updates
+  * Server-Sent Events (SSE) — live log streaming
 
 ## Conventions & Patterns
 

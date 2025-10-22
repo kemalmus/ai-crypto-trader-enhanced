@@ -60,6 +60,33 @@ python agent.py run --cycle 120
 
 **Note:** The daemon is **already running** via the workflow, so you don't need to run this manually. You can see it in the console on the right side of your screen.
 
+### 4. Start Web UI for Monitoring
+
+```bash
+# Start the web UI (cyberpunk terminal interface)
+agent ui
+
+# Or with custom host/port
+agent ui --host 0.0.0.0 --port 8080
+```
+
+**What it does:**
+- Launches a beautiful cyberpunk-themed web interface
+- Provides real-time monitoring of the trading system
+- Shows NAV, positions, trades, and live logs
+- Works alongside the daemon for live updates
+
+**Features:**
+- **Overview:** NAV, P&L, positions, cycle status
+- **Symbols:** Real-time prices and technical indicators
+- **Trades:** Complete trade history with filtering
+- **Logs:** Live streaming with decision tracing
+- **Theme:** Terminal-like cyberpunk styling
+
+**Access:** `http://localhost:8000` (or your configured host/port)
+
+**Note:** You can run both the daemon and web UI simultaneously for the best experience.
+
 ## Current System Status
 
 ### What's Running Now
@@ -74,9 +101,13 @@ The "Trading Daemon" workflow is active and processing:
 
 ### Where to See Activity
 
-1. **Console (right panel):** Real-time logs of what the daemon is doing
-2. **Command line:** Run `python agent.py status` anytime to check positions/NAV
-3. **Database:** All trades, candles, and events are stored in Neon Postgres
+1. **Web UI (Recommended):** `agent ui` then visit `http://localhost:8000` for the best experience
+   - Real-time dashboard with all system information
+   - Live streaming logs with decision tracing
+   - Beautiful cyberpunk terminal interface
+2. **Console (right panel):** Real-time logs of what the daemon is doing
+3. **Command line:** Run `python agent.py status` anytime to check positions/NAV
+4. **Database:** All trades, candles, and events are stored in Neon Postgres
 
 ## Trading Logic
 
@@ -109,10 +140,14 @@ This is normal and expected - the system is designed to avoid trading in choppy 
 
 ### Morning Routine
 ```bash
-# Check your portfolio
+# Option 1: Use the beautiful web UI (recommended)
+agent ui
+# Then visit http://localhost:8000 for the full dashboard
+
+# Option 2: Quick CLI check
 python agent.py status
 
-# View recent activity (daemon logs are in the console)
+# View recent activity (daemon logs are in the console or web UI)
 ```
 
 ### If You See a Trade

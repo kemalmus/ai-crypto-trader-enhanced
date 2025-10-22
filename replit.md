@@ -13,8 +13,10 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
 ## System Architecture
 The system is built around a daemon runner orchestrating a continuous trading loop.
 **UI/UX Decisions:**
-- The system primarily uses a CLI interface for interaction, focusing on functional output (status, logs, rationale) rather than a graphical user interface.
-- Logging is structured and comprehensive, providing clear audit trails and decision contexts.
+- **Dual Interface:** The system provides both a CLI interface for functional operations and a cyberpunk-themed web UI for real-time monitoring and visualization.
+- **Web UI:** Built with FastAPI + Jinja + HTMX + Tailwind/DaisyUI, providing a terminal-like interface with live logs, dashboards, and decision tracing.
+- **CLI Interface:** Provides commands for initialization, status checks, running the trading daemon, viewing logs, and trade rationales.
+- **Logging:** Structured and comprehensive, providing clear audit trails and decision contexts through both interfaces.
 
 **Technical Implementations & Feature Specifications:**
 - **Core Database:** Neon Postgres serves as the single source of truth, storing all trading data across 11 tables (nav, candles, features, sentiment, positions, trades, reflections, qa, config, event_log, decision_rationale) ensuring a full audit trail and proper trade lifecycle tracking.
@@ -29,6 +31,7 @@ The system is built around a daemon runner orchestrating a continuous trading lo
 - **Execution Simulation:** A `Paper Broker` simulates trades with realistic slippage (max(3bps, 0.15 * HL%)) and fees (2 bps), accounting for full round-trip costs.
 - **Reflection Engine:** Periodically generates market commentary based on current NAV, positions, and regime data.
 - **Logging:** An `Enhanced Logging` system provides structured event logging to JSONL files (with rotation), console, and the database, including tags, symbols, actions, and decision_ids.
+- **Web UI:** A `FastAPI-based Web Interface` provides real-time monitoring with a cyberpunk terminal theme, featuring Overview, Symbols, Trades, and Logs tabs with live SSE streaming and decision tracing.
 - **CLI Interface:** Provides commands for initialization, status checks, running the trading daemon, viewing logs, and trade rationales.
 - **Daemon Runner:** Orchestrates the trading cycle (configurable, default 90 seconds) which includes data ingestion, feature computation, signal generation, LLM proposal, consultant review, execution, persistence, NAV updates, and logging.
 
@@ -48,3 +51,61 @@ The system is built around a daemon runner orchestrating a continuous trading lo
 - **pandas:** For data manipulation
 - **aiohttp:** Asynchronous HTTP client
 - **uv:** For dependency management and package installation
+
+## Web UI Usage
+
+### Starting the Web Interface
+
+```bash
+# Start the web UI (runs on port 8000 by default)
+agent ui
+
+# Or with custom host/port
+agent ui --host 0.0.0.0 --port 8080
+```
+
+### Web UI Features
+
+The cyberpunk-themed web interface provides real-time monitoring with:
+
+**Overview Tab:**
+- Current NAV and P&L breakdown
+- Open positions summary
+- Cycle latency and heartbeat status
+- Drawdown from peak NAV
+
+**Symbols Tab:**
+- Real-time price and indicator data for all symbols
+- Regime status (trend/chop) with color coding
+- Technical indicators (RVOL, CMF, Donchian bands)
+- Market regime visualization
+
+**Trades Tab:**
+- Complete trade history with P&L
+- Filtering by symbol and date range
+- Fee and slippage details
+- Entry/exit rationale
+
+**Logs Tab:**
+- Live streaming of system events via Server-Sent Events (SSE)
+- Filter by level (DEBUG/INFO/WARN/ERROR), tags, symbol, decision_id
+- Terminal-like display with color coding
+- Raw JSON toggle for detailed debugging
+- Real-time decision tracing with decision_id chains
+
+### Web UI Access
+
+- **URL:** `http://localhost:8000` (or configured host/port)
+- **Features:** Responsive design, cyberpunk terminal theme
+- **Live Updates:** Automatic refresh of data and logs
+- **Decision Tracing:** Follow complete decision chains with decision_id
+- **Mobile Friendly:** Works on mobile devices
+
+### Running Both Systems
+
+You can run the trading daemon and web UI simultaneously:
+
+1. **Terminal 1:** `agent run` (trading daemon)
+2. **Terminal 2:** `agent ui` (web interface)
+
+The web UI connects to the same database, so you'll see live updates as the daemon processes trades.

@@ -146,7 +146,35 @@ class TradingDaemon:
         await self.db.log_event('INFO', ['CYCLE'], action='END_CYCLE', 
                                decision_id=decision_id)
     
+    async def ensure_sufficient_data(self, symbol: str, min_candles: int = 200):
+        """Ensure symbol has sufficient historical data, backfill if needed"""
+        candles = await self.db.get_candles(symbol, self.timeframe, limit=min_candles)
+        candle_count = len(candles) if candles else 0
+        
+        if candle_count < min_candles:
+            logger.info(f"{symbol} has only {candle_count} candles, backfilling to {min_candles}...")
+            adapter = self.get_adapter_for_symbol(symbol)
+            
+            historical_candles = adapter.warm_up_data(symbol, self.timeframe, days=120)
+            if historical_candles:
+                await self.db.save_candles(symbol, self.timeframe, historical_candles)
+                logger.info(f"✓ Backfilled {len(historical_candles)} candles for {symbol}")
+                
+                await self.db.log_event('INFO', ['BACKFILL'], 
+                                      symbol=symbol, action='BACKFILL_DATA',
+                                      payload={'candles_before': candle_count, 
+                                              'candles_fetched': len(historical_candles)})
+            else:
+                logger.warning(f"Failed to backfill data for {symbol}")
+                return False
+        
+        return True
+    
     async def process_symbol(self, symbol: str, nav: float, decision_id: str):
+        if not await self.ensure_sufficient_data(symbol):
+            logger.warning(f"Skipping {symbol} - insufficient data")
+            return
+        
         adapter = self.get_adapter_for_symbol(symbol)
         latest_candles = adapter.fetch_ohlcv(symbol, self.timeframe, limit=5)
         if latest_candles:

@@ -2,7 +2,10 @@
 import asyncio
 import sys
 import argparse
+from dotenv import load_dotenv
 from runner.daemon import TradingDaemon
+
+load_dotenv()
 
 async def cmd_init(args):
     daemon = TradingDaemon()

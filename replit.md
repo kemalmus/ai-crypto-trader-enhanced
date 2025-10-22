@@ -30,7 +30,7 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
    - Public OHLCV data only (no API keys for data)
 
 3. **TA Engine** (`ta/indicators.py`) - Technical analysis with pandas-ta
-   - Indicators: EMA(20/50/200), HMA(55), RSI(14), StochRSI, ATR(14), Bollinger, Donchian, OBV, CMF, ADX, RVOL, VWAP
+   - Indicators: EMA(20/50/200), HMA(55), RSI(14), StochRSI, ATR(14), Bollinger, Donchian, OBV, CMF, ADX, RVOL, VWAP (session-based), AVWAP (anchored)
 
 4. **Signal Engine** (`signals/rules.py`) - Regime-based trading logic
    - Regime detection (trend vs chop using ADX)

@@ -40,7 +40,7 @@ Data: CCXT public OHLCV. Sentiment: Perplexity search. Storage: Neon Postgres.
 
 ```
 adapters/ccxt_public.py      # public OHLCV ingest (multi-exchange support)
-ta/indicators.py             # EMA/HMA/RSI/ATR/Bollinger/Donchian/CMF/RVOL/VWAP/AVWAP
+ta/indicators.py             # EMA/HMA/RSI/ATR/Bollinger/Donchian/CMF/RVOL/VWAP(session-based)/AVWAP(anchored)
 signals/rules.py             # regime gates + entries/exits + sizing/stops
 analysis/sentiment.py        # Perplexity + DuckDuckGo fallback for news/sentiment
 analysis/llm_advisor.py      # OpenRouter LLM (deepseek primary, grok fallback) + consultant integration

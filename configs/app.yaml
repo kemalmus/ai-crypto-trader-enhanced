@@ -7,7 +7,7 @@ symbols:
   - ETH/USD
   - SOL/USD    # May require manual verification on coinbase
   - AVAX/USD   # May require manual verification on coinbase
-  - MATIC/USD  # May require manual verification on coinbase
+  # - MATIC/USD  # Not available on accessible exchanges (Coinbase inactive, Binance geo-restricted, Kraken doesn't list)
   - LINK/USD   # May require manual verification on coinbase
   - UNI/USD    # May require manual verification on coinbase
   - AAVE/USD   # May require manual verification on coinbase
@@ -29,12 +29,7 @@ warm_up_days: 120
 # Symbol Exchange Mapping
 # Override exchange for specific symbols if needed
 symbol_exchanges:
-  # SOL/USD: coinbase  # Uncomment if available on coinbase
-  # AVAX/USD: coinbase # Uncomment if available on coinbase
-  # MATIC/USD: coinbase # Uncomment if available on coinbase
-  # LINK/USD: coinbase # Uncomment if available on coinbase
-  # UNI/USD: coinbase # Uncomment if available on coinbase
-  # AAVE/USD: coinbase # Uncomment if available on coinbase
+  # MATIC/USD: kraken  # Not available on accessible exchanges
 
 # Technical Indicators
 indicators:

@@ -163,7 +163,8 @@ async def cmd_validate(args):
         symbols_to_check = args.symbols or daemon.config.get('symbols', [])
         print(f"Would validate {len(symbols_to_check)} symbols:")
         for symbol in symbols_to_check:
-            exchange = daemon.config.get('symbol_exchanges', {}).get(symbol, daemon.config.get('exchange', 'coinbase'))
+            symbol_exchanges = daemon.config.get('symbol_exchanges') or {}
+            exchange = symbol_exchanges.get(symbol, daemon.config.get('exchange', 'coinbase'))
             print(f"  {symbol} -> {exchange}")
         print(f"\nConfigured exchanges: {list(daemon._initialize_exchanges().keys())}")
         return
@@ -179,7 +180,8 @@ async def cmd_validate(args):
     unavailable = 0
 
     for symbol, is_available in availability.items():
-        exchange = daemon.config.get('symbol_exchanges', {}).get(symbol, daemon.config.get('exchange', 'coinbase'))
+        symbol_exchanges = daemon.config.get('symbol_exchanges') or {}
+        exchange = symbol_exchanges.get(symbol, daemon.config.get('exchange', 'coinbase'))
         status = "✓ Available" if is_available else "✗ Unavailable"
         print(f"  {symbol:10s} | {exchange:10s} | {status}")
         if is_available:

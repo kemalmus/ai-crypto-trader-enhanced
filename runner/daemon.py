@@ -59,7 +59,9 @@ class TradingDaemon:
         exchanges[default_exchange] = CCXTAdapter(default_exchange)
 
         # Initialize symbol-specific exchanges if configured
-        symbol_exchanges = self.config.get('symbol_exchanges', {}) if self.config else {}
+        symbol_exchanges = self.config.get('symbol_exchanges') if self.config else {}
+        if symbol_exchanges is None:
+            symbol_exchanges = {}
         for symbol_exchange in symbol_exchanges.values():
             if symbol_exchange not in exchanges:
                 exchanges[symbol_exchange] = CCXTAdapter(symbol_exchange)
@@ -68,7 +70,9 @@ class TradingDaemon:
 
     def get_adapter_for_symbol(self, symbol: str) -> CCXTAdapter:
         """Get the appropriate CCXT adapter for a symbol"""
-        symbol_exchanges = self.config.get('symbol_exchanges', {}) if self.config else {}
+        symbol_exchanges = self.config.get('symbol_exchanges') if self.config else {}
+        if symbol_exchanges is None:
+            symbol_exchanges = {}
         default_exchange = self.config.get('exchange', 'coinbase') if self.config else 'coinbase'
         exchange = symbol_exchanges.get(symbol, default_exchange)
         return self.ccxt_adapters[exchange]

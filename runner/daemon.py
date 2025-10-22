@@ -165,10 +165,10 @@ class TradingDaemon:
         # Log regime detection with supporting indicators
         latest_indicators = df.iloc[-1] if not df.empty else {}
         regime_indicators = {
-            'adx14': latest_indicators.get('adx14', 0),
-            'ema50': latest_indicators.get('ema50', 0),
-            'ema200': latest_indicators.get('ema200', 0),
-            'close': latest_indicators.get('c', 0)
+            'adx14': float(latest_indicators.get('adx14', 0)) if pd.notna(latest_indicators.get('adx14', 0)) else 0,
+            'ema50': float(latest_indicators.get('ema50', 0)) if pd.notna(latest_indicators.get('ema50', 0)) else 0,
+            'ema200': float(latest_indicators.get('ema200', 0)) if pd.notna(latest_indicators.get('ema200', 0)) else 0,
+            'close': float(latest_indicators.get('c', 0)) if pd.notna(latest_indicators.get('c', 0)) else 0
         }
 
         await self.db.log_event('INFO', ['SIGNAL', 'REGIME'],

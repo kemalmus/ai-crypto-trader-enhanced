@@ -49,9 +49,19 @@ class TAEngine:
         # Session-based VWAP (resets daily)
         typical_price = (df['h'] + df['l'] + df['c']) / 3
         df['session'] = df.index.date  # Group by trading day
-        df['vwap'] = df.groupby('session').apply(
-            lambda x: (typical_price.loc[x.index] * x['v']).cumsum() / x['v'].cumsum()
-        ).explode().reset_index(level=0, drop=True)
+
+        # Calculate session-based VWAP
+        vwap_values = []
+        for session_date in df['session'].unique():
+            session_mask = df['session'] == session_date
+            session_data = df[session_mask]
+            session_typical = typical_price[session_mask]
+            session_cumsum = (session_typical * session_data['v']).cumsum()
+            session_volume_cumsum = session_data['v'].cumsum()
+            session_vwap = session_cumsum / session_volume_cumsum
+            vwap_values.extend(session_vwap.values)
+
+        df['vwap'] = vwap_values
 
         # Anchored AVWAP from recent breakout (last 20-bar high)
         breakout_price = df['h'].rolling(window=20).max().shift(1)  # Look back for breakout
@@ -63,7 +73,11 @@ class TAEngine:
             # Calculate AVWAP from breakout point forward
             anchor_data = df.loc[last_breakout_idx:]
             anchor_typical = (anchor_data['h'] + anchor_data['l'] + anchor_data['c']) / 3
-            df['avwap'] = (anchor_typical * anchor_data['v']).cumsum() / anchor_data['v'].cumsum()
+            cumsum_price_vol = (anchor_typical * anchor_data['v']).cumsum()
+            cumsum_vol = anchor_data['v'].cumsum()
+            # Avoid division by zero
+            anchor_avwap = cumsum_price_vol / cumsum_vol.replace(0, 1)  # Replace 0 with 1 to avoid div by zero
+            df['avwap'] = anchor_avwap
             # Fill backward with session VWAP for bars before anchor
             pre_anchor_mask = df.index < last_breakout_idx
             if pre_anchor_mask.any():

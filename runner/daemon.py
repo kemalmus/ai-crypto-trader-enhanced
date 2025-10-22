@@ -281,7 +281,17 @@ class TradingDaemon:
         else:
             if regime == 'trend':
                 entry_signal = self.signal_engine.check_entry_long(df)
-                
+
+                # Skip LLM/consultant when there is no actionable entry signal
+                if not entry_signal.get('signal', False):
+                    await self.db.log_event('INFO', ['PROPOSAL'],
+                                          symbol=symbol,
+                                          action='SKIP_NO_SIGNAL',
+                                          decision_id=decision_id,
+                                          payload={'reason': 'no entry signal', 'regime': regime})
+                    logger.info(f"{symbol} No entry signal, skipping LLM/consultant")
+                    return
+
                 # Get proposal with consultant review
                 llm_proposal, consultant_review = await self.llm_advisor.get_trade_proposal_with_consultant(
                     symbol, regime, entry_signal, sentiment_data, current_position

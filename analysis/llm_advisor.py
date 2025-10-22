@@ -184,17 +184,17 @@ class LLMAdvisor:
     
     def _get_system_prompt(self) -> str:
         return (
-            "You are an expert cryptocurrency trading advisor. Analyze the provided market data "
-            "and provide a concise trading recommendation. Format your response as JSON with these fields:\n"
-            "- symbol: the trading pair symbol\n"
-            "- side: 'long', 'short', or 'none'\n"
-            "- confidence: 0-100 (percentage confidence in the trade)\n"
-            "- reasons: array of brief reasons (max 3)\n"
-            "- entry: suggested entry price or 'market'\n"
-            "- stop: object with {type: 'atr', multiplier: number}\n"
-            "- take_profit: object with {rr: risk-reward ratio}\n"
-            "- max_hold_bars: maximum bars to hold position\n\n"
-            "Only respond with valid JSON, no additional text."
+            "System: You may only propose trades as JSON. No prose.\n"
+            "Fields:\n"
+            "- symbol: string (e.g., 'BTC/USD')\n"
+            "- side: 'long' | 'short' | 'flat'\n"
+            "- confidence: number (0-100)\n"
+            "- reasons: string[] (max 3)\n"
+            "- entry: {type: 'market'}\n"
+            "- stop: {type: 'atr', multiplier: number}\n"
+            "- take_profit: {rr: number}\n"
+            "- max_hold_bars: number\n\n"
+            "Respond with JSON only."
         )
     
     def _build_prompt(self, symbol: str, regime: str, signals: Dict, 
@@ -240,9 +240,9 @@ class LLMAdvisor:
                     logger.warning(f"Missing field in LLM response: {field}")
                     return self._get_default_proposal(f"Incomplete response: missing {field}")
             
-            valid_sides = ['long', 'short', 'none']
+            valid_sides = ['long', 'short', 'flat']
             if proposal['side'] not in valid_sides:
-                proposal['side'] = 'none'
+                proposal['side'] = 'flat'
             
             proposal['confidence'] = max(0, min(100, int(proposal['confidence'])))
             
@@ -258,10 +258,10 @@ class LLMAdvisor:
             logger.error(f"Failed to parse LLM response: {e}")
             return self._get_default_proposal(str(e))
     
-    def _get_default_proposal(self, reason: str) -> Dict:
+    def _get_default_proposal(self, reason: str, symbol: str = '') -> Dict:
         return {
-            'symbol': '',
-            'side': 'none',
+            'symbol': symbol,
+            'side': 'flat',
             'confidence': 0,
             'reasons': [f"LLM advisor unavailable: {reason}"],
             'entry': 'market',

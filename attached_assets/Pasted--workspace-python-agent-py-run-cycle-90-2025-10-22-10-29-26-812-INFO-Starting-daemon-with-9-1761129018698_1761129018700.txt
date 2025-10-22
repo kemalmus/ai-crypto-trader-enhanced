@@ -1,0 +1,24 @@
+~/workspace$ python agent.py run --cycle 90
+2025-10-22 10:29:26,812 - INFO - Starting daemon with 90s cycles...
+2025-10-22 10:29:27,052 - INFO - Current NAV: $1,000.00
+2025-10-22 10:29:29,404 - INFO - BTC/USD regime: trend (ADX: 41.46, EMA50/200: 106557.79/103258.94)
+2025-10-22 10:29:34,807 - INFO - Consultant review for BTC/USD: reject (100%)
+2025-10-22 10:29:34,808 - INFO - Consultant reject for BTC/USD (confidence: 100%)
+2025-10-22 10:29:34,890 - INFO - BTC/USD LLM proposal: none (0%) Model: deepseek/deepseek-chat-v3-0324 Response: 3110ms
+2025-10-22 10:29:34,970 - INFO - BTC/USD Consultant: reject (100%) - The proposal is incomplete with no defined side, entry strategy, stop loss, take profit, or technical signals, presenting no viable trade for review and violating basic risk management requirements.
+2025-10-22 10:29:35,502 - INFO - ETH/USD regime: trend (ADX: 57.85, EMA50/200: 3417.27/2526.04)
+2025-10-22 10:29:41,917 - INFO - Consultant review for ETH/USD: reject (100%)
+2025-10-22 10:29:41,917 - INFO - Consultant reject for ETH/USD (confidence: 100%)
+2025-10-22 10:29:41,998 - INFO - ETH/USD LLM proposal: none (0%) Model: deepseek/deepseek-chat-v3-0324 Response: 4048ms
+2025-10-22 10:29:42,078 - INFO - ETH/USD Consultant: reject (100%) - The proposal is incomplete with no specified side, entry details, stop loss, take profit, or valid technical signals (signal: false and 0% confidence), presenting no actionable trade and violating basic risk management requirements.
+2025-10-22 10:29:42,608 - INFO - SOL/USD regime: trend (ADX: 48.37, EMA50/200: 156.36/147.13)
+2025-10-22 10:29:50,812 - INFO - Consultant review for SOL/USD: reject (10%)
+2025-10-22 10:29:50,812 - INFO - Consultant reject for SOL/USD (confidence: 10%)
+2025-10-22 10:29:50,893 - INFO - SOL/USD LLM proposal: none (0%) Model: deepseek/deepseek-chat-v3-0324 Response: 5202ms
+2025-10-22 10:29:50,973 - INFO - SOL/USD Consultant: reject (10%) - The proposal is incomplete with no defined side, entry logic, stop loss, take profit, or reasons, and a false technical signal, presenting no viable trade opportunity and violating basic risk management principles.
+2025-10-22 10:29:51,500 - INFO - AVAX/USD regime: trend (ADX: 45.63, EMA50/200: 18.33/18.14)
+2025-10-22 10:29:56,680 - INFO - Consultant review for AVAX/USD: reject (100%)
+2025-10-22 10:29:56,680 - INFO - Consultant reject for AVAX/USD (confidence: 100%)
+2025-10-22 10:29:56,761 - INFO - AVAX/USD LLM proposal: none (0%) Model: deepseek/deepseek-chat-v3-0324 Response: 3304ms
+2025-10-22 10:29:56,842 - INFO - AVAX/USD Consultant: reject (100%) - The proposal provides no trade direction, entry details, risk parameters, or supporting reasons, with technical signals explicitly false and 0% confidence, rendering it invalid and unsuitable for any action in a trending market regime.
+2025-10-22 10:29:57,362 - INFO - LINK/USD regime: trend (ADX: 55.79, EMA50/200: 14.45/13.53)

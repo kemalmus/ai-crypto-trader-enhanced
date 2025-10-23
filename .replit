@@ -25,25 +25,25 @@ args = "React UI"
 name = "API Backend"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python -m web.server"
 waitForPort = 8000
 
-[workflows.workflow.metadata]
-outputType = "console"
-
 [[workflows.workflow]]
 name = "React UI"
 author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd web/ui && npm run dev"
 waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[ports]]
 localPort = 5000
@@ -58,5 +58,5 @@ localPort = 8080
 externalPort = 8080
 
 [[ports]]
-localPort = 41875
+localPort = 46273
 externalPort = 3000

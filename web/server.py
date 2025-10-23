@@ -46,9 +46,13 @@ app = FastAPI(
 )
 templates = Jinja2Templates(directory="web/templates")
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="web/static"), name="static")
-app.mount("/ui", StaticFiles(directory="web/static/ui", html=True), name="ui")
+# Mount static files (for legacy templates)
+import os
+if os.path.exists("web/static"):
+    app.mount("/static", StaticFiles(directory="web/static"), name="static")
+# Skip UI mount - using Vite dev server for React UI
+# if os.path.exists("web/static/ui"):
+#     app.mount("/ui", StaticFiles(directory="web/static/ui", html=True), name="ui")
 
 # Global config and db instances
 config = Config()

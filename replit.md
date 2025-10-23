@@ -13,8 +13,15 @@ This project is an AI-powered cryptocurrency paper trading system built on Repli
 ## System Architecture
 The system is built around a daemon runner orchestrating a continuous trading loop.
 **UI/UX Decisions:**
-- **Dual Interface:** The system provides both a CLI interface for functional operations and a cyberpunk-themed web UI for real-time monitoring and visualization.
-- **Web UI:** Built with FastAPI + Jinja + HTMX + Tailwind/DaisyUI, providing a terminal-like interface with live logs, dashboards, and decision tracing.
+- **Dual Interface:** The system provides both a CLI interface for functional operations and a modern React web UI for real-time monitoring and visualization.
+- **React Web UI:** Built with React + Vite + TypeScript + Tailwind/DaisyUI, providing a cyberpunk-themed interface with:
+  - **Overview Dashboard:** NAV, P&L, drawdown, open positions, last cycle timestamp
+  - **Live Logs Stream:** Real-time event streaming with filtering (SSE-based)
+  - **Sentiment Gauge:** Circular gauge showing 24h/7d sentiment and trends
+  - **Ticker Grid:** Real-time price data, regime detection, and technical indicators for all symbols
+  - **Trades Panel:** Complete trade history with entry/exit prices, P&L, and fees
+  - **Architecture:** Vite dev server (port 5000) proxies API requests to FastAPI backend (port 8000)
+- **Legacy Web UI:** FastAPI + Jinja templates available at `/` (for backward compatibility)
 - **CLI Interface:** Provides commands for initialization, status checks, running the trading daemon, viewing logs, and trade rationales.
 - **Logging:** Structured and comprehensive, providing clear audit trails and decision contexts through both interfaces.
 
@@ -31,7 +38,13 @@ The system is built around a daemon runner orchestrating a continuous trading lo
 - **Execution Simulation:** A `Paper Broker` simulates trades with realistic slippage (max(3bps, 0.15 * HL%)) and fees (2 bps), accounting for full round-trip costs.
 - **Reflection Engine:** Periodically generates market commentary based on current NAV, positions, and regime data.
 - **Logging:** An `Enhanced Logging` system provides structured event logging to JSONL files (with rotation), console, and the database, including tags, symbols, actions, and decision_ids.
-- **Web UI:** A `FastAPI-based Web Interface` provides real-time monitoring with a cyberpunk terminal theme, featuring Overview, Symbols, Trades, and Logs tabs with live SSE streaming and decision tracing.
+- **React Web UI:** A modern React application (`web/ui`) built with Vite, TypeScript, and Tailwind CSS:
+  - Real-time data visualization with live updates
+  - Server-Sent Events (SSE) for streaming logs
+  - TanStack Query for efficient data fetching
+  - Lightweight Charts for price visualization
+  - Responsive cyberpunk-themed design
+- **FastAPI Backend:** Serves REST API endpoints (`web/server.py`) for overview, symbols, trades, logs, candles, and sentiment data.
 - **CLI Interface:** Provides commands for initialization, status checks, running the trading daemon, viewing logs, and trade rationales.
 - **Daemon Runner:** Orchestrates the trading cycle (configurable, default 90 seconds) which includes data ingestion, feature computation, signal generation, LLM proposal, consultant review, execution, persistence, NAV updates, and logging.
 
@@ -52,60 +65,85 @@ The system is built around a daemon runner orchestrating a continuous trading lo
 - **aiohttp:** Asynchronous HTTP client
 - **uv:** For dependency management and package installation
 
-## Web UI Usage
+## Running the System in Replit
 
-### Starting the Web Interface
+The system uses **two workflows** that run simultaneously:
+
+### Workflows
+
+1. **API Backend** (Port 8000)
+   - FastAPI server providing REST API endpoints
+   - Connects to Neon Postgres database
+   - Serves data for the React UI
+
+2. **React UI** (Port 5000) 
+   - Vite development server for the React frontend
+   - Proxies `/api` requests to the backend (port 8000)
+   - **This is the main UI** - Replit displays it in the webview
+
+### Starting the System
+
+Both workflows start automatically in Replit. You can also start them manually:
 
 ```bash
-# Start the web UI (runs on port 8000 by default)
-agent ui
+# Terminal 1: Start the API backend
+python -m web.server
 
-# Or with custom host/port
-agent ui --host 0.0.0.0 --port 8080
+# Terminal 2: Start the React UI (in web/ui directory)
+cd web/ui && npm run dev
 ```
 
-### Web UI Features
+### React UI Features
 
-The cyberpunk-themed web interface provides real-time monitoring with:
+The cyberpunk-themed React interface provides:
 
-**Overview Tab:**
+**Overview Panel** (Left):
 - Current NAV and P&L breakdown
-- Open positions summary
-- Cycle latency and heartbeat status
-- Drawdown from peak NAV
+- Realized and unrealized profits
+- Open positions count
+- Last cycle timestamp
+- Drawdown percentage
 
-**Symbols Tab:**
-- Real-time price and indicator data for all symbols
-- Regime status (trend/chop) with color coding
-- Technical indicators (RVOL, CMF, Donchian bands)
-- Market regime visualization
+**Sentiment Gauge** (Left):
+- Circular gauge showing market sentiment
+- 24h sentiment score
+- 7-day sentiment trend
+- Visual color-coded indicators
 
-**Trades Tab:**
-- Complete trade history with P&L
-- Filtering by symbol and date range
-- Fee and slippage details
-- Entry/exit rationale
+**Key Logs Stream** (Center):
+- Live streaming of system events via SSE
+- Signal detection (REGIME_TREND, REGIME_CHOP)
+- Proposal events (SKIP_NO_SIGNAL, etc.)
+- Color-coded by event type
+- Symbol highlighting
 
-**Logs Tab:**
-- Live streaming of system events via Server-Sent Events (SSE)
-- Filter by level (DEBUG/INFO/WARN/ERROR), tags, symbol, decision_id
-- Terminal-like display with color coding
-- Raw JSON toggle for detailed debugging
-- Real-time decision tracing with decision_id chains
+**Ticker Grid** (Bottom):
+- Real-time data for all trading symbols
+- Regime status (trend/chop/unknown)
+- Last price and technical indicators
+- RVOL, CMF, Donchian bands
+- Color-coded regime badges
+
+**Trades Panel** (Right):
+- Complete trade history
+- Entry/exit prices and timestamps
+- P&L calculation
+- Quantity and side (long/short)
 
 ### Web UI Access
 
-- **URL:** `http://localhost:8000` (or configured host/port)
-- **Features:** Responsive design, cyberpunk terminal theme
-- **Live Updates:** Automatic refresh of data and logs
-- **Decision Tracing:** Follow complete decision chains with decision_id
-- **Mobile Friendly:** Works on mobile devices
+- **React UI:** `http://localhost:5000` (Replit webview)
+- **API Backend:** `http://localhost:8000` (internal)
+- **Legacy Template UI:** `http://localhost:8000/` (available for backward compatibility)
 
-### Running Both Systems
+### Architecture
 
-You can run the trading daemon and web UI simultaneously:
+```
+User → Replit Webview (Port 5000) → Vite Dev Server
+                                      ↓ Proxy /api requests
+                                   FastAPI Backend (Port 8000)
+                                      ↓
+                                   Neon Postgres Database
+```
 
-1. **Terminal 1:** `agent run` (trading daemon)
-2. **Terminal 2:** `agent ui` (web interface)
-
-The web UI connects to the same database, so you'll see live updates as the daemon processes trades.
+The React app fetches data from the FastAPI backend via proxy, which connects to the database.

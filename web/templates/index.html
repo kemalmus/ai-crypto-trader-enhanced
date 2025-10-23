@@ -1,49 +1,49 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Tab Navigation -->
-<div class="mb-6">
-    <div class="tabs tabs-boxed bg-base-200">
-        <a class="tab tab-active" onclick="showTab('overview')">Overview</a>
-        <a class="tab" onclick="showTab('symbols')">Symbols</a>
-        <a class="tab" onclick="showTab('trades')">Trades</a>
-        <a class="tab" onclick="showTab('logs')">Logs</a>
+    <!-- Tab Navigation -->
+    <div class="mb-6">
+        <div class="flex border-b border-gray-600">
+            <a class="tab-active px-4 py-2 border-b-2 border-green-400 text-green-400 cursor-pointer" onclick="showTab('overview')">Overview</a>
+            <a class="px-4 py-2 text-gray-400 hover:text-green-400 cursor-pointer" onclick="showTab('symbols')">Symbols</a>
+            <a class="px-4 py-2 text-gray-400 hover:text-green-400 cursor-pointer" onclick="showTab('trades')">Trades</a>
+            <a class="px-4 py-2 text-gray-400 hover:text-green-400 cursor-pointer" onclick="showTab('logs')">Logs</a>
+        </div>
     </div>
-</div>
 
 <!-- Tab Content -->
 <div id="tab-content">
     <!-- Overview Tab -->
     <div id="overview-tab" class="tab-content active">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div class="cyberpunk-card rounded-lg p-4">
+            <div class="cyberpunk-card p-4">
                 <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">NAV</h3>
                 <div id="nav-value" class="text-2xl font-bold cyberpunk-text">$0.00</div>
             </div>
-            <div class="cyberpunk-card rounded-lg p-4">
+            <div class="cyberpunk-card p-4">
                 <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Realized PnL</h3>
-                <div id="realized-pnl" class="text-xl font-bold text-success">$0.00</div>
+                <div id="realized-pnl" class="text-xl font-bold pnl-positive">$0.00</div>
             </div>
-            <div class="cyberpunk-card rounded-lg p-4">
+            <div class="cyberpunk-card p-4">
                 <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Unrealized PnL</h3>
-                <div id="unrealized-pnl" class="text-xl font-bold text-info">$0.00</div>
+                <div id="unrealized-pnl" class="text-xl font-bold pnl-positive">$0.00</div>
             </div>
-            <div class="cyberpunk-card rounded-lg p-4">
+            <div class="cyberpunk-card p-4">
                 <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Drawdown</h3>
-                <div id="drawdown" class="text-xl font-bold text-warning">0.00%</div>
+                <div id="drawdown" class="text-xl font-bold pnl-negative">0.00%</div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="cyberpunk-card rounded-lg p-4">
+            <div class="cyberpunk-card p-4">
                 <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Positions</h3>
                 <div id="positions-count" class="text-3xl font-bold cyberpunk-text">0</div>
-                <p class="text-sm opacity-70">Open positions</p>
+                <p class="text-sm cyberpunk-text">Open positions</p>
             </div>
-            <div class="cyberpunk-card rounded-lg p-4">
+            <div class="cyberpunk-card p-4">
                 <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">Cycle Status</h3>
                 <div id="last-cycle" class="text-lg cyberpunk-text">-</div>
-                <div id="cycle-latency" class="text-sm opacity-70">-</div>
+                <div id="cycle-latency" class="text-sm cyberpunk-text">-</div>
             </div>
         </div>
     </div>
@@ -59,26 +59,26 @@
     <div id="trades-tab" class="tab-content">
         <div class="mb-4 flex flex-wrap gap-2">
             <input type="text" id="trades-symbol-filter" placeholder="Filter by symbol"
-                   class="input input-bordered input-sm bg-base-200 border-primary">
+                   class="px-3 py-1 border border-green-400 bg-gray-800 text-green-400 text-sm rounded">
             <input type="datetime-local" id="trades-since-filter"
-                   class="input input-bordered input-sm bg-base-200 border-primary">
-            <button onclick="loadTrades()" class="btn btn-primary btn-sm">Filter</button>
+                   class="px-3 py-1 border border-green-400 bg-gray-800 text-green-400 text-sm rounded">
+            <button onclick="loadTrades()" class="btn-primary px-3 py-1 text-sm rounded">Filter</button>
         </div>
 
-        <div class="cyberpunk-card rounded-lg overflow-hidden">
+        <div class="cyberpunk-card overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="table table-compact w-full trade-table">
+                <table class="w-full trade-table">
                     <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Side</th>
-                            <th>Qty</th>
-                            <th>Entry</th>
-                            <th>Exit</th>
-                            <th>PnL</th>
-                            <th>Fees</th>
-                            <th>Slippage</th>
-                            <th>Reason</th>
+                        <tr class="border-b border-gray-600">
+                            <th class="px-4 py-2 text-left text-green-400">Symbol</th>
+                            <th class="px-4 py-2 text-left text-green-400">Side</th>
+                            <th class="px-4 py-2 text-left text-green-400">Qty</th>
+                            <th class="px-4 py-2 text-left text-green-400">Entry</th>
+                            <th class="px-4 py-2 text-left text-green-400">Exit</th>
+                            <th class="px-4 py-2 text-left text-green-400">PnL</th>
+                            <th class="px-4 py-2 text-left text-green-400">Fees</th>
+                            <th class="px-4 py-2 text-left text-green-400">Slippage</th>
+                            <th class="px-4 py-2 text-left text-green-400">Reason</th>
                         </tr>
                     </thead>
                     <tbody id="trades-table-body">
@@ -92,7 +92,7 @@
     <!-- Logs Tab -->
     <div id="logs-tab" class="tab-content">
         <div class="mb-4 flex flex-wrap gap-2">
-            <select id="logs-level-filter" class="select select-bordered select-sm bg-base-200 border-primary">
+            <select id="logs-level-filter" class="px-3 py-1 border border-green-400 bg-gray-800 text-green-400 text-sm rounded">
                 <option value="">All Levels</option>
                 <option value="DEBUG">DEBUG</option>
                 <option value="INFO">INFO</option>
@@ -100,13 +100,13 @@
                 <option value="ERROR">ERROR</option>
             </select>
             <input type="text" id="logs-tags-filter" placeholder="Tags (comma-separated)"
-                   class="input input-bordered input-sm bg-base-200 border-primary">
+                   class="px-3 py-1 border border-green-400 bg-gray-800 text-green-400 text-sm rounded">
             <input type="text" id="logs-symbol-filter" placeholder="Symbol"
-                   class="input input-bordered input-sm bg-base-200 border-primary">
+                   class="px-3 py-1 border border-green-400 bg-gray-800 text-green-400 text-sm rounded">
             <input type="text" id="logs-decision-filter" placeholder="Decision ID"
-                   class="input input-bordered input-sm bg-base-200 border-primary">
-            <button onclick="loadLogs()" class="btn btn-primary btn-sm">Filter</button>
-            <button onclick="toggleRawLogs()" id="raw-toggle" class="btn btn-outline btn-sm">Raw JSON</button>
+                   class="px-3 py-1 border border-green-400 bg-gray-800 text-green-400 text-sm rounded">
+            <button onclick="loadLogs()" class="btn-primary px-3 py-1 text-sm rounded">Filter</button>
+            <button onclick="toggleRawLogs()" id="raw-toggle" class="px-3 py-1 border border-gray-400 bg-gray-800 text-gray-400 text-sm rounded hover:border-green-400 hover:text-green-400">Raw JSON</button>
         </div>
 
         <div class="terminal-panel rounded-lg p-4 h-96 overflow-y-auto" id="logs-container">
@@ -118,10 +118,20 @@
 <script>
 // Tab switching
 function showTab(tabName) {
-    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('tab-active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    // Remove active states from all tabs and content
+    document.querySelectorAll('[onclick*="showTab"]').forEach(tab => {
+        tab.className = tab.className.replace('tab-active', '').replace('text-green-400', 'text-gray-400');
+        tab.className = tab.className.replace('border-green-400', '');
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
 
-    event.target.classList.add('tab-active');
+    // Add active state to clicked tab
+    event.target.className = event.target.className.replace('text-gray-400', 'tab-active text-green-400');
+    event.target.className += ' border-green-400';
+
+    // Show selected content
     document.getElementById(tabName + '-tab').classList.add('active');
 
     // Load tab data
@@ -140,6 +150,17 @@ function showTab(tabName) {
             startLogStream();
             break;
     }
+}
+
+// Show empty state for a container
+function showEmptyState(containerId, message, icon = '📊') {
+    const container = document.getElementById(containerId);
+    container.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-state-icon">${icon}</div>
+            <p>${message}</p>
+        </div>
+    `;
 }
 
 // Load overview data
@@ -172,11 +193,17 @@ async function loadSymbols() {
         const symbols = await response.json();
 
         const grid = document.getElementById('symbols-grid');
+
+        if (symbols.length === 0 || (symbols.length > 0 && symbols[0].regime === 'unknown')) {
+            showEmptyState('symbols-grid', 'No market data available yet. Start the trading daemon to begin collecting features.', '📈');
+            return;
+        }
+
         grid.innerHTML = symbols.map(symbol => `
-            <div class="cyberpunk-card rounded-lg p-4">
+            <div class="cyberpunk-card p-4">
                 <h3 class="text-lg font-semibold mb-2 cyberpunk-accent">${symbol.symbol}</h3>
                 <div class="grid grid-cols-2 gap-2 text-sm">
-                    <div>Regime: <span class="${symbol.regime === 'trend' ? 'text-success' : 'text-warning'}">${symbol.regime}</span></div>
+                    <div>Regime: <span class="${symbol.regime === 'trend' ? 'pnl-positive' : 'pnl-negative'}">${symbol.regime}</span></div>
                     <div>Price: $${symbol.last_price.toFixed(2)}</div>
                     <div>RVOL: ${symbol.rvol.toFixed(2)}</div>
                     <div>CMF: ${symbol.cmf.toFixed(3)}</div>
@@ -186,6 +213,7 @@ async function loadSymbols() {
         `).join('');
     } catch (error) {
         console.error('Failed to load symbols:', error);
+        showEmptyState('symbols-grid', 'Failed to load symbols data. Check if the database is connected.', '❌');
     }
 }
 
@@ -204,10 +232,25 @@ async function loadTrades() {
         const trades = await response.json();
 
         const tbody = document.getElementById('trades-table-body');
+
+        if (trades.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-8">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">💰</div>
+                            <p>No trades yet. Start trading to see your trade history here.</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
         tbody.innerHTML = trades.map(trade => `
             <tr>
                 <td>${trade.symbol}</td>
-                <td><span class="badge ${trade.side === 'long' ? 'badge-success' : 'badge-error'}">${trade.side}</span></td>
+                <td><span class="px-2 py-1 rounded text-xs ${trade.side === 'long' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}">${trade.side.toUpperCase()}</span></td>
                 <td>${trade.qty}</td>
                 <td>${formatTimestamp(trade.entry_ts)}</td>
                 <td>${trade.exit_ts ? formatTimestamp(trade.exit_ts) : '-'}</td>
@@ -219,6 +262,17 @@ async function loadTrades() {
         `).join('');
     } catch (error) {
         console.error('Failed to load trades:', error);
+        const tbody = document.getElementById('trades-table-body');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center py-8">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <p>Failed to load trades data. Check if the database is connected.</p>
+                    </div>
+                </td>
+            </tr>
+        `;
     }
 }
 
@@ -252,6 +306,12 @@ async function loadLogs() {
 
 function renderLogs(logs) {
     const container = document.getElementById('logs-container');
+
+    if (logs.length === 0) {
+        showEmptyState('logs-container', 'No logs available yet. Start the trading daemon to see system events.', '📋');
+        return;
+    }
+
     const html = logs.map(log => {
         if (rawMode) {
             return `<div class="log-entry level-${log.level.toLowerCase()}">${JSON.stringify(log, null, 2)}</div>`;
@@ -313,7 +373,9 @@ function startLogStream() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    loadOverview(); // Load overview by default
+    // Show overview tab by default
+    document.getElementById('overview-tab').classList.add('active');
+    loadOverview(); // Load overview data
 });
 </script>
 {% endblock %}

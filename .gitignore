@@ -1,3 +1,9 @@
+web/ui/node_modules/
+web/ui/dist/
+web/static/ui/
+logs/
+*.log
+*.DS_Store
 # Byte-compiled / cached files
 __pycache__/
 *.py[cod]

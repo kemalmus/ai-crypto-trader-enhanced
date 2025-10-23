@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-theme="cyberpunk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Trading Agent — Cyber UI</title>
+  </head>
+  <body class="min-h-screen bg-base-300 text-base-content">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+  <style>
+    /* subtle scanline overlay for terminal vibe */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0.06) 0px,
+        rgba(0,0,0,0.06) 1px,
+        transparent 2px,
+        transparent 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+  </style>
+  </html>
+
